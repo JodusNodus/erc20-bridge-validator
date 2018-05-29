@@ -1,0 +1,21 @@
+{
+	"name": "erc20-bridge-validator",
+	"version": "1.0.0",
+	"description": "",
+	"main": "index.js",
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1"
+	},
+	"author": "",
+	"license": "MIT",
+	"bin": {
+		"bridgevalidator": "bin.js"
+	},
+	"dependencies": {
+		"command-line-tool": "^0.8.0",
+		"dotenv": "^5.0.1",
+		"erc20-bridge": "git+ssh://git@github.com/DataBrokerDAO/erc20-bridge.git",
+		"winston": "^3.0.0-rc1",
+		"web3": "^1.0.0-beta.34"
+	}
+}
