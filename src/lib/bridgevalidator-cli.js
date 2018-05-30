@@ -35,15 +35,16 @@ class BridgeValidatorCli {
 		let options = {
 			MAINWEB3HOSTWS: cli.options.mainweb3hostws || process.env.MAINWEB3HOSTWS,
 			MAINCONTRACTADDRESS: cli.options.maincontractaddress || process.env.MAINCONTRACTADDRESS,
-			SIDEWEB3HOSTWS: cli.options.sideweb3hostws || process.env.SIDEWEB3HOSTWS,
-			SIDECONTRACTADDRESS: cli.options.sidecontractaddress || process.env.SIDECONTRACTADDRESS,
+			FOREIGNWEB3HOSTWS: cli.options.foreignweb3hostws || process.env.FOREIGNWEB3HOSTWS,
+			FOREIGNCONTRACTADDRESS: cli.options.foreigncontractaddress || process.env.FOREIGNCONTRACTADDRESS,
 			KEYFILE: cli.options.keyfile || process.env.KEYFILE,
+			STARTBLOCK: cli.options.startblock || process.env.STARTBLOCK,			
 		};
 
 		if (!options.MAINWEB3HOSTWS ||
 			!options.MAINCONTRACTADDRESS ||
-			!options.SIDEWEB3HOSTWS ||
-			!options.SIDECONTRACTADDRESS ||
+			!options.FOREIGNWEB3HOSTWS ||
+			!options.FOREIGNCONTRACTADDRESS ||
 			!options.KEYFILE
 		) {
 			options.help = true;

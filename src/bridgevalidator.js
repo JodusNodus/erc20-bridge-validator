@@ -38,7 +38,7 @@ class BridgeValidator {
 		this.logger.info('bootstrapping validator node');
 		const Web3 = require('web3');
 		const web3Main = new Web3(new Web3.providers.WebsocketProvider(this.options.MAINWEB3HOSTWS));
-		const web3Foreign = new Web3(new Web3.providers.WebsocketProvider(this.options.SIDEWEB3HOSTWS));
+		const web3Foreign = new Web3(new Web3.providers.WebsocketProvider(this.options.FOREIGNWEB3HOSTWS));
 
 		const ERC20 = require('erc20-bridge/build/contracts/ERC20.json');
 		const ERC777 = require('erc20-bridge/build/contracts/ReferenceToken.json');
@@ -48,10 +48,20 @@ class BridgeValidator {
 		const homebridge = new web3Main.eth.Contract(HomeERC20Bridge.abi, this.options.MAINCONTRACTADDRESS);
 		const foreignbridge = new web3Foreign.eth.Contract(ForeignERC777Bridge.abi, this.options.MAINCONTRACTADDRESS);
 
-		this.logger.info('setting event listener on homebridge');
-		homebridge.events.allEvents({
-			fromBlock: this.options.STARTBLOCK,
+		const startBlock = this.options.STARTBLOCK || 'latest';
+
+		this.logger.info('setting event listener on homebridge from block : %s', startBlock);
+
+		this.logger.info('options %j', this.options);
+		this.logger.info('hb %j', homebridge.options);
+
+		console.log(foreignbridge.events);
+
+
+		foreignbridge.events.TokenAdded({
+			fromBlock: startBlock,
 		}, (error, result) => {
+			this.logger.info('EVENT');
 			if (error == null) {
 				this.logger.info('Homebridge event=%j', result);
 			} else {

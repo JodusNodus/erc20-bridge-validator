@@ -9,17 +9,21 @@ exports.definitions = [{
 	type: String,
 	description: 'mainchain bridge contract address.',
 }, {
-	name: 'sideweb3hostws',
+	name: 'foreignweb3hostws',
 	type: String,
 	description: 'the URL of your sidechain Ethereum node WS. ex. "ws://localhost:8546"',
 }, {
-	name: 'sidecontractaddress',
+	name: 'foreigncontractaddress',
 	type: String,
 	description: 'sidechain bridge contract address.',
 }, {
 	name: 'keyfile',
 	type: String,
 	description: 'file containing the Ethereum key to sign bridge requests with.',
+}, {
+	name: 'startblock',
+	type: Number,
+	description: 'startblock where to start listening (or current block if not specified)',
 }, {
 	name: 'help',
 	type: Boolean,
