@@ -1,4 +1,4 @@
-FROM node:alpine
+FROM node:9-alpine
 ARG NPM_TOKEN
 ENV NPM_TOKEN=$NPM_TOKEN
 RUN mkdir -p /srv
