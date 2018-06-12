@@ -7,6 +7,5 @@ COPY . /srv
 # COPY ./*.png /srv/src/docs/
 RUN echo "//registry.npmjs.org/:_authToken=\${NPM_TOKEN}" > ~/.npmrc && \
   apk --update add --no-cache openssh-client git make gcc g++ python rsync bash && \
-  npm install && \
-  npm run build
+  npm install
 CMD ["node", "bin.js"]
