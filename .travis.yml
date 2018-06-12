@@ -22,7 +22,6 @@ before_install:
   - npm i -g npm@latest
   - npm i -g ganache-cli truffle
   - ganache-cli -m 'robot robot robot robot robot robot robot robot robot robot robot robot' -l 0xfffffffffff -id 1234 > testrpc.log &
-  - truffle migrate
 
 install:
   - npm ci
