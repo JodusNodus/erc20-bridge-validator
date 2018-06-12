@@ -1,27 +1,33 @@
 {
   "name": "@settlemint/erc20-bridge-validator",
-	"version": "1.0.0",
-	"description": "",
-	"main": "index.js",
-	"scripts": {
-		"test": "echo \"No tests specified\" || exit 0"
-	},
+  "version": "0.0.0-development",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"No tests specified\" || exit 0",
+    "travis-deploy-once": "travis-deploy-once",
+    "semantic-release": "semantic-release"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/DataBrokerDAO/erc20-bridge-validator.git"
   },
   "author": "Stefaan Ponnet",
-	"license": "MIT",
-	"bin": {
-		"bridgevalidator": "bin.js"
-	},
-	"dependencies": {
-		"command-line-tool": "^0.8.0",
-		"dotenv": "^5.0.1",
-		"ethereumjs-tx": "^1.3.4",
-		"level": "^4.0.0",
-		"web3": "^1.0.0-beta.34",
-		"winston": "^3.0.0-rc1",
-		"@settlemint/erc20-bridge": "^1.0.0"
-	}
+  "license": "MIT",
+  "bin": {
+    "bridgevalidator": "bin.js"
+  },
+  "dependencies": {
+    "command-line-tool": "^0.8.0",
+    "dotenv": "^5.0.1",
+    "ethereumjs-tx": "^1.3.4",
+    "level": "^4.0.0",
+    "web3": "^1.0.0-beta.34",
+    "winston": "^3.0.0-rc1",
+    "@settlemint/erc20-bridge": "^1.0.0"
+  },
+  "devDependencies": {
+    "travis-deploy-once": "^5.0.0",
+    "semantic-release": "^15.5.2"
+  }
 }
