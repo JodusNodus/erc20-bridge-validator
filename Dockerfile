@@ -1,0 +1,12 @@
+FROM node:alpine
+ARG NPM_TOKEN
+ENV NPM_TOKEN=$NPM_TOKEN
+RUN mkdir -p /srv
+WORKDIR /srv
+COPY . /srv
+# COPY ./*.png /srv/src/docs/
+RUN echo "//registry.npmjs.org/:_authToken=\${NPM_TOKEN}" > ~/.npmrc && \
+  apk --update add --no-cache openssh-client git make gcc g++ python rsync bash && \
+  npm install && \
+  npm run build
+CMD ["node", "bin.js"]
