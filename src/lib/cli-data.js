@@ -21,9 +21,21 @@ exports.definitions = [{
 	type: String,
 	description: 'file containing the Ethereum key to sign bridge requests with.',
 }, {
-	name: 'startblock',
+	name: 'startblockmain',
 	type: Number,
-	description: 'startblock where to start listening (or current block if not specified)',
+	description: 'startblock where to start listening on MAIN chain (or current block if not specified)',
+}, {
+	name: 'startblockforeign',
+	type: Number,
+	description: 'startblock where to start listening on FOREIGN chain (or current block if not specified)',
+}, {
+	name: 'pollinterval',
+	type: Number,
+	description: 'interval in ms to poll bridges for events',
+}, {
+	name: 'rescan',
+	type: Boolean,
+	description: 're-scan range from startblock',
 }, {
 	name: 'help',
 	type: Boolean,

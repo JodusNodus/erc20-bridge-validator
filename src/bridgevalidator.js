@@ -1,33 +1,35 @@
-'use strict';
+// 'use strict';
+//import logger from './logs';
+//import bridgelib from '../../erc20-bridge/bridgelib';
+//import foreignBridge from './foreignBridge';
 
-const bridgelib = require('../../erc20-bridge/bridgelib.js');
+const bridgelib = require('../../erc20-bridge/bridgelib');
+const ForeignBridgeWatcher = require('./ForeignBridgeWatcher');
+const logger = require('./logs')(module);
 
 /**
  * Bootstrap the validator node
  *
  */
+
 class BridgeValidator {
 	/**
 	 * constructor
 	 *
 	 * @param      {object}  options  The options
 	 */
-	constructor(options) {
-		const {
-			createLogger,
-			format,
-			transports,
-		} = require('winston');
-		this.logger = createLogger({
-			level: 'info',
-			format: format.combine(
-				format.colorize(),
-				format.splat(),
-				format.simple()
-			),
-			transports: [new transports.Console()],
-		});
-		this.options = options;
+	constructor(MAINWEB3HOSTWS, MAINCONTRACTADDRESS, FOREIGNWEB3HOSTWS,
+		FOREIGNCONTRACTADDRESS, KEYFILE, STARTBLOCKMAIN, STARTBLOCKFOREIGN, POLLTIME,RESCAN) {
+
+		this.MAINWEB3HOSTWS = MAINWEB3HOSTWS;
+		this.MAINCONTRACTADDRESS = MAINCONTRACTADDRESS;
+		this.FOREIGNWEB3HOSTWS = FOREIGNWEB3HOSTWS;
+		this.FOREIGNCONTRACTADDRESS = FOREIGNCONTRACTADDRESS;
+		this.KEYFILE = KEYFILE;
+		this.STARTBLOCKMAIN = STARTBLOCKMAIN;
+		this.STARTBLOCKFOREIGN = STARTBLOCKFOREIGN;
+		this.POLLTIME = POLLTIME || 2000;
+		this.RESCAN = RESCAN;
 	}
 
 	/**
@@ -35,39 +37,21 @@ class BridgeValidator {
 	 *
 	 */
 	go() {
-		this.logger.info('bootstrapping validator node');
-		const Web3 = require('web3');
-		const web3Main = new Web3(new Web3.providers.WebsocketProvider(this.options.MAINWEB3HOSTWS));
-		const web3Foreign = new Web3(new Web3.providers.WebsocketProvider(this.options.FOREIGNWEB3HOSTWS));
+		logger.info('bootstrapping validator');
 
-		const ERC20 = require('erc20-bridge/build/contracts/ERC20.json');
-		const ERC777 = require('erc20-bridge/build/contracts/ReferenceToken.json');
-		const HomeERC20Bridge = require('erc20-bridge/build/contracts/HomeERC20Bridge.json');
-		const ForeignERC777Bridge = require('erc20-bridge/build/contracts/ForeignERC777Bridge.json');
+		this.signKey = require(this.KEYFILE);
+		logger.info('signer identity %s',this.signKey.public);
 
-		const homebridge = new web3Main.eth.Contract(HomeERC20Bridge.abi, this.options.MAINCONTRACTADDRESS);
-		const foreignbridge = new web3Foreign.eth.Contract(ForeignERC777Bridge.abi, this.options.MAINCONTRACTADDRESS);
+		this.foreignBridgeWatcher = new ForeignBridgeWatcher(
+			this.MAINWEB3HOSTWS,
+			this.FOREIGNWEB3HOSTWS,
+			this.MAINCONTRACTADDRESS,
+			this.FOREIGNCONTRACTADDRESS,
+			this.STARTBLOCKFOREIGN,
+			this.KEYFILE,
+			this.RESCAN
+		);
 
-		const startBlock = this.options.STARTBLOCK || 'latest';
-
-		this.logger.info('setting event listener on homebridge from block : %s', startBlock);
-
-		this.logger.info('options %j', this.options);
-		this.logger.info('hb %j', homebridge.options);
-
-		console.log(foreignbridge.events);
-
-
-		foreignbridge.events.TokenAdded({
-			fromBlock: startBlock,
-		}, (error, result) => {
-			this.logger.info('EVENT');
-			if (error == null) {
-				this.logger.info('Homebridge event=%j', result);
-			} else {
-				this.logger.error('Error: %s', error.message);
-			}
-		});
 	}
 }
 module.exports = BridgeValidator;

@@ -38,16 +38,24 @@ class BridgeValidatorCli {
 			FOREIGNWEB3HOSTWS: cli.options.foreignweb3hostws || process.env.FOREIGNWEB3HOSTWS,
 			FOREIGNCONTRACTADDRESS: cli.options.foreigncontractaddress || process.env.FOREIGNCONTRACTADDRESS,
 			KEYFILE: cli.options.keyfile || process.env.KEYFILE,
-			STARTBLOCK: cli.options.startblock || process.env.STARTBLOCK,			
+			STARTBLOCKMAIN: cli.options.startblockmain || process.env.STARTBLOCKMAIN,
+			STARTBLOCKFOREIGN: cli.options.startblockforeign || process.env.STARTBLOCKFOREIGN,
+			POLLINTERVAL: cli.options.pollinterval || process.env.POLLINTERVAL,
+			RESCAN: cli.options.rescan,
+
 		};
 
 		if (!options.MAINWEB3HOSTWS ||
 			!options.MAINCONTRACTADDRESS ||
 			!options.FOREIGNWEB3HOSTWS ||
 			!options.FOREIGNCONTRACTADDRESS ||
-			!options.KEYFILE
+			!options.KEYFILE ||
+			!options.STARTBLOCKMAIN ||
+			!options.STARTBLOCKFOREIGN ||
+			!options.POLLINTERVAL
 		) {
 			options.help = true;
+			console.log(options);
 		}
 
 		if (options.help) {
@@ -56,7 +64,17 @@ class BridgeValidatorCli {
 			return;
 		}
 
-		const instance = new BridgeValidator(options);
+		const instance = new BridgeValidator(
+			options.MAINWEB3HOSTWS,
+			options.MAINCONTRACTADDRESS,
+			options.FOREIGNWEB3HOSTWS,
+			options.FOREIGNCONTRACTADDRESS,
+			options.KEYFILE,
+			options.STARTBLOCKMAIN,
+			options.STARTBLOCKFOREIGN,
+			options.POLLINTERVAL,
+			options.RESCAN,
+		);
 		instance.go();
 	}
 }
