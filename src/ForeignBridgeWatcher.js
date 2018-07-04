@@ -39,7 +39,11 @@ class ForeignBridgeWatcher {
 	}
 
 	addERC20Watcher(address) {
-		let watcher = new ERC20Watcher(
+		const addressWatcher = this.tokenwatchers.find(watcher => watcher.contractAddress === address)
+		if (addressWatcher) {
+			return
+		}
+		const watcher = new ERC20Watcher(
 			// Only on foreign net for testing
 			this.options.foreignWebsocketURL,
 			address,
