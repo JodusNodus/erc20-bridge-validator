@@ -13,6 +13,12 @@ class BridgeValidatorCli {
 		this.stdout = process.stdout;
 	}
 
+	getOptionValue(key, cli) {
+		const cliVal = cli.options[key]
+		const envVal = process.env[key.toUpperCase()]
+		return cliVal === undefined ? envVal : cliVal
+	}
+
 	/**
 	 * Creates the ipfsconsortium class
 	 * Sets up the options from ENV, .ENV file or commandline
@@ -32,17 +38,18 @@ class BridgeValidatorCli {
 
 		const cli = tool.getCli(cliData.definitions, cliData.usageSections, argv);
 
-		let options = {
-			mainWebsocketURL: cli.options.mainweb3hostws || process.env.MAINWEB3HOSTWS,
-			mainContractAddress: cli.options.maincontractaddress || process.env.MAINCONTRACTADDRESS,
-			foreignWebsocketURL: cli.options.foreignweb3hostws || process.env.FOREIGNWEB3HOSTWS,
-			foreignContractAddress: cli.options.foreigncontractaddress || process.env.FOREIGNCONTRACTADDRESS,
-			keyFile: cli.options.keyfile || process.env.KEYFILE,
-			startBlockMain: cli.options.startblockmain || process.env.STARTBLOCKMAIN,
-			startBlockForeign: cli.options.startblockforeign || process.env.STARTBLOCKFOREIGN,
-			pollInterval: cli.options.pollinterval || process.env.POLLINTERVAL || 10000,
-			rescan: cli.options.rescan,
-		};
+		const options = {
+			// Defaults
+			pollInterval: 10000,
+			rescan: false,
+		}
+
+		cliData.definitions.forEach((def) => {
+			const val = this.getOptionValue(def.name, cli)
+			if (val !== undefined) {
+				options[def.name] = val
+			}
+		})
 
 		if (!options.mainWebsocketURL ||
 			!options.mainContractAddress ||

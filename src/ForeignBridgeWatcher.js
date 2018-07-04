@@ -20,7 +20,7 @@ class ForeignBridgeWatcher {
 			this.web3,
 			this.bridge,
 			this.processRange,
-			options.startBlockMain,
+			options.startBlockForeign,
 			options.pollInterval,
 			this,
 			options.rescan,

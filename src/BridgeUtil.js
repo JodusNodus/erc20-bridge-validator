@@ -18,11 +18,9 @@ class BridgeUtil {
 	async startPolling() {
 		if (typeof this.defaultStartBlock !== "number") {
 			this.defaultStartBlock = await this.web3.eth.getBlockNumber()
-		}
-
-		if (this.rescan) {
+		} else if (this.rescan) {
 			logger.info('forcing rescan from startblock %d', this.defaultStartBlock);
-			return this.setLastProcessedBlock(this.contract._address, this.defaultStartBlock)
+			this.setLastProcessedBlock(this.contract._address, this.defaultStartBlock)
 		}
 
 		this.pollLoop();

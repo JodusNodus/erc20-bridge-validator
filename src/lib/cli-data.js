@@ -1,35 +1,35 @@
 'use strict';
 
 exports.definitions = [{
-	name: 'mainweb3hostws',
+	name: 'mainWebsocketURL',
 	type: String,
 	description: 'the URL of your mainchain Ethereum node WS. ex. "ws://localhost:8546"',
 }, {
-	name: 'maincontractaddress',
+	name: 'mainContractAddress',
 	type: String,
 	description: 'mainchain bridge contract address.',
 }, {
-	name: 'foreignweb3hostws',
+	name: 'foreignWebsocketURL',
 	type: String,
 	description: 'the URL of your sidechain Ethereum node WS. ex. "ws://localhost:8546"',
 }, {
-	name: 'foreigncontractaddress',
+	name: 'foreignContractAddress',
 	type: String,
 	description: 'sidechain bridge contract address.',
 }, {
-	name: 'keyfile',
+	name: 'keyFile',
 	type: String,
 	description: 'file containing the Ethereum key to sign bridge requests with.',
 }, {
-	name: 'startblockmain',
+	name: 'startBlockMain',
 	type: Number,
 	description: 'startblock where to start listening on MAIN chain (or current block if not specified)',
 }, {
-	name: 'startblockforeign',
+	name: 'startBlockForeign',
 	type: Number,
 	description: 'startblock where to start listening on FOREIGN chain (or current block if not specified)',
 }, {
-	name: 'pollinterval',
+	name: 'pollInterval',
 	type: Number,
 	description: 'interval in ms to poll bridges for events',
 }, {
