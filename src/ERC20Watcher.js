@@ -1,18 +1,19 @@
 const Web3 = require('web3');
 const logger = require('./logs')(module);
-const ERC20 = require('erc20-bridge/build/contracts/ERC20.json');
+const ERC20 = require('../../erc20-bridge/build/contracts/ERC20.json');
+const bridgeLib = require('../../erc20-bridge/bridgelib')();
 const BridgeUtil = require('./BridgeUtil');
-const bridgeLib = require('erc20-bridge/bridgelib')();
 const EthereumTx = require('ethereumjs-tx');
 
 const idlePollTimeout = 10000; // 10s
 
 class ERC20Watcher {
 	constructor(web3WebsocketUrl, contractAddress, startBlock, tokenRecipient, keyFile, foreignBridge) {
-		logger.info('starting ERC20 watcher %s - contract %s - from startblock %d', web3WebsocketUrl, contractAddress, startBlock);
+		logger.info('starting ERC20 watcher %s - contract %s', web3WebsocketUrl, contractAddress);
 
 		this.web3 = new Web3(new Web3.providers.WebsocketProvider(web3WebsocketUrl));
 		this.bridge = new this.web3.eth.Contract(ERC20.abi, contractAddress);
+
 		this.startBlock = startBlock;
 		this.tokenRecipient = tokenRecipient;
 		this.contractAddress = contractAddress;
@@ -31,7 +32,8 @@ class ERC20Watcher {
 			this.signKey.public + '-' + contractAddress, // scope of the DB keys
 		);
 
-		this.bridgeUtil.startPolling();
+		this.bridgeUtil.startPolling()
+			.then(() => {})
 	}
 
 	processRange(contract, startBlock, endBlock) {

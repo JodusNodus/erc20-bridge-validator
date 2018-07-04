@@ -15,16 +15,19 @@ class BridgeUtil {
 		db = require('./db')(this.dbscope);
 	}
 
-	startPolling() {
-		let p = Promise.resolve();
+	async startPolling() {
+		if (typeof this.defaultStartBlock !== "number") {
+			this.defaultStartBlock = await this.web3.eth.getBlockNumber()
+		}
+
 		if (this.rescan) {
 			logger.info('forcing rescan from startblock %d', this.defaultStartBlock);
-			p = this.setLastProcessedBlock(this.contract._address, this.defaultStartBlock).then(() => {});
+			return this.setLastProcessedBlock(this.contract._address, this.defaultStartBlock)
 		}
-		p.then(() => {
-			this.pollLoop();
-		})
+
+		this.pollLoop();
 	}
+
 	pollLoop() {
 		this.getLastProcessedBlock(this.contract._address).then((lastProccessedBlock) => {
 			logger.info('start polling from last processed block %d', lastProccessedBlock);

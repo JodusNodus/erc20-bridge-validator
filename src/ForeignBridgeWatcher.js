@@ -1,20 +1,21 @@
 const Web3 = require('web3');
 const logger = require('./logs')(module);
-const ForeignERC777Bridge = require('erc20-bridge/build/contracts/ForeignERC777Bridge.json');
+const ForeignERC777Bridge = require('../../erc20-bridge/build/contracts/ForeignERC777Bridge.json');
 const ERC20Watcher = require('./ERC20Watcher');
 const BridgeUtil = require('./BridgeUtil');
 
 const idlePollTimeout = 10000; // 10s
 
 class ForeignBridgeWatcher {
-	constructor(mainWebsocketURL, foreignWebsocketURL, homeBridgeContractAddress, foreignBridgeContractAddress, startBlock, keyFile, rescan) {
-		logger.info('starting bridge %s - startblock %d', foreignWebsocketURL, startBlock);
+	constructor(mainWebsocketURL, foreignWebsocketURL, homeBridgeContractAddress, foreignBridgeContractAddress, startBlockMain, startBlockForeign, keyFile, rescan) {
+		logger.info('starting bridge %s - startblock %d', foreignWebsocketURL, startBlockForeign);
 
 		this.mainWebsocketURL = mainWebsocketURL;
 		this.foreignWebsocketURL = foreignWebsocketURL;
 		this.web3 = new Web3(new Web3.providers.WebsocketProvider(foreignWebsocketURL));
 		this.bridge = new this.web3.eth.Contract(ForeignERC777Bridge.abi, foreignBridgeContractAddress);
-		this.startBlock = startBlock;
+		this.startBlock = startBlockForeign;
+		this.startBlockMain = startBlockMain;
 		this.homeBridgeContractAddress = homeBridgeContractAddress;
 		this.keyFile = keyFile;
 		this.signKey = require(this.keyFile);
@@ -30,7 +31,26 @@ class ForeignBridgeWatcher {
 		);
 		this.tokenwatchers = [];
 
-		this.bridgeUtil.startPolling();
+		this.bridgeUtil.startPolling()
+			.then(() => this.startERC20Listeners())
+			.then(() => {})
+	}
+
+	async startERC20Listeners() {
+		const tokens = await this.bridge.methods.tokens().call({ from: this.signKey.public })
+		tokens.forEach(addr => this.addERC20Watcher(addr))
+	}
+
+	addERC20Watcher(address) {
+		let watcher = new ERC20Watcher(
+			// Only on foreign net for testing
+			this.foreignWebsocketURL,
+			address,
+			this.startBlockMain,
+			this.homeBridgeContractAddress,
+			this.keyFile,
+			this.bridge);
+		this.tokenwatchers.push(watcher);
 	}
 
 	processRange(contract, startBlock, endBlock) {
@@ -59,33 +79,38 @@ class ForeignBridgeWatcher {
 
 	processEvent(contract, event) {
 		logger.info('bridge event : %s', event.event);
-		switch (event.event) {
-			case 'TokenAdded':
-				let watcher = new ERC20Watcher(
-					this.mainWebsocketURL,
-					event.returnValues._mainToken,
-					event.foreignTx.blockNumber,
-					this.homeBridgeContractAddress,
-					this.keyFile,
-					this.bridge);
-				this.tokenwatchers.push(watcher);
-				return Promise.resolve();
-			case 'MintRequestSigned':
-				if (event.foreignTx.from.toLowerCase() == this.signKey.public.toLowerCase()) {
-					logger.info('Marking MintRequestSigned with TxHash %s as processed ( txhash %s )', event.returnValues._mintRequestsHash, event.transactionHash);
-					this.bridgeUtil.markTx(event.transactionHash, {
-						date: Date.now(),
-						event: event,
-					});
-				}
-				break;
-			case 'ValidatorAdded':
-				// we can ignore these events
-				break;
-			default:
-				logger.info('unhandled event %s', event.event);
-				return Promise.resolve();
+		const eventHandlers = {
+			TokenAdded: this.onTokenAdded,
+			MintRequestSigned: this.onMintRequestSigned,
+			ValidatorAdded: this.onValidatorAdded
 		}
+
+		const eventHandler = eventHandlers[event.event]
+
+		if(eventHandler) {
+			return eventHandler.call(this, contract, event)
+		} else {
+			logger.info('unhandled event %s', event.event);
+			return Promise.resolve();
+		}
+	}
+
+	onTokenAdded(contract, event) {
+		this.addERC20Watcher(event.returnValues._mainToken, event.foreignTx.blockNumber)
+	}
+
+	onMintRequestSigned(contract, event) {
+		if (event.foreignTx.from.toLowerCase() == this.signKey.public.toLowerCase()) {
+			logger.info('Marking MintRequestSigned with TxHash %s as processed ( txhash %s )', event.returnValues._mintRequestsHash, event.transactionHash);
+			this.bridgeUtil.markTx(event.transactionHash, {
+				date: Date.now(),
+				event: event,
+			});
+		}
+	}
+
+	onValidatorAdded(contract, event) {
+		// we can ignore these events
 	}
 }
 

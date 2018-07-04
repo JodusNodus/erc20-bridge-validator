@@ -50,8 +50,6 @@ class BridgeValidatorCli {
 			!options.FOREIGNWEB3HOSTWS ||
 			!options.FOREIGNCONTRACTADDRESS ||
 			!options.KEYFILE ||
-			!options.STARTBLOCKMAIN ||
-			!options.STARTBLOCKFOREIGN ||
 			!options.POLLINTERVAL
 		) {
 			options.help = true;

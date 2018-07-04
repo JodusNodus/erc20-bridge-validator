@@ -47,6 +47,7 @@ class BridgeValidator {
 			this.FOREIGNWEB3HOSTWS,
 			this.MAINCONTRACTADDRESS,
 			this.FOREIGNCONTRACTADDRESS,
+			this.STARTBLOCKMAIN,
 			this.STARTBLOCKFOREIGN,
 			this.KEYFILE,
 			this.RESCAN
