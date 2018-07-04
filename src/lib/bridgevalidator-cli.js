@@ -33,24 +33,22 @@ class BridgeValidatorCli {
 		const cli = tool.getCli(cliData.definitions, cliData.usageSections, argv);
 
 		let options = {
-			MAINWEB3HOSTWS: cli.options.mainweb3hostws || process.env.MAINWEB3HOSTWS,
-			MAINCONTRACTADDRESS: cli.options.maincontractaddress || process.env.MAINCONTRACTADDRESS,
-			FOREIGNWEB3HOSTWS: cli.options.foreignweb3hostws || process.env.FOREIGNWEB3HOSTWS,
-			FOREIGNCONTRACTADDRESS: cli.options.foreigncontractaddress || process.env.FOREIGNCONTRACTADDRESS,
-			KEYFILE: cli.options.keyfile || process.env.KEYFILE,
-			STARTBLOCKMAIN: cli.options.startblockmain || process.env.STARTBLOCKMAIN,
-			STARTBLOCKFOREIGN: cli.options.startblockforeign || process.env.STARTBLOCKFOREIGN,
-			POLLINTERVAL: cli.options.pollinterval || process.env.POLLINTERVAL,
-			RESCAN: cli.options.rescan,
-
+			mainWebsocketURL: cli.options.mainweb3hostws || process.env.MAINWEB3HOSTWS,
+			mainContractAddress: cli.options.maincontractaddress || process.env.MAINCONTRACTADDRESS,
+			foreignWebsocketURL: cli.options.foreignweb3hostws || process.env.FOREIGNWEB3HOSTWS,
+			foreignContractAddress: cli.options.foreigncontractaddress || process.env.FOREIGNCONTRACTADDRESS,
+			keyFile: cli.options.keyfile || process.env.KEYFILE,
+			startBlockMain: cli.options.startblockmain || process.env.STARTBLOCKMAIN,
+			startBlockForeign: cli.options.startblockforeign || process.env.STARTBLOCKFOREIGN,
+			pollInterval: cli.options.pollinterval || process.env.POLLINTERVAL || 10000,
+			rescan: cli.options.rescan,
 		};
 
-		if (!options.MAINWEB3HOSTWS ||
-			!options.MAINCONTRACTADDRESS ||
-			!options.FOREIGNWEB3HOSTWS ||
-			!options.FOREIGNCONTRACTADDRESS ||
-			!options.KEYFILE ||
-			!options.POLLINTERVAL
+		if (!options.mainWebsocketURL ||
+			!options.mainContractAddress ||
+			!options.foreignWebsocketURL ||
+			!options.foreignContractAddress ||
+			!options.keyFile
 		) {
 			options.help = true;
 			console.log(options);
@@ -62,17 +60,7 @@ class BridgeValidatorCli {
 			return;
 		}
 
-		const instance = new BridgeValidator(
-			options.MAINWEB3HOSTWS,
-			options.MAINCONTRACTADDRESS,
-			options.FOREIGNWEB3HOSTWS,
-			options.FOREIGNCONTRACTADDRESS,
-			options.KEYFILE,
-			options.STARTBLOCKMAIN,
-			options.STARTBLOCKFOREIGN,
-			options.POLLINTERVAL,
-			options.RESCAN,
-		);
+		const instance = new BridgeValidator(options);
 		instance.go();
 	}
 }

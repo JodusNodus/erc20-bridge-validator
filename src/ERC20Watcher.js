@@ -8,7 +8,7 @@ const EthereumTx = require('ethereumjs-tx');
 const idlePollTimeout = 10000; // 10s
 
 class ERC20Watcher {
-	constructor(web3WebsocketUrl, contractAddress, startBlock, tokenRecipient, keyFile, foreignBridge) {
+	constructor(web3WebsocketUrl, contractAddress, startBlock, tokenRecipient, signKey, foreignBridge) {
 		logger.info('starting ERC20 watcher %s - contract %s', web3WebsocketUrl, contractAddress);
 
 		this.web3 = new Web3(new Web3.providers.WebsocketProvider(web3WebsocketUrl));
@@ -19,7 +19,7 @@ class ERC20Watcher {
 		this.contractAddress = contractAddress;
 		this.foreignBridge = foreignBridge;
 
-		this.signKey = require(keyFile);
+		this.signKey = signKey;
 
 		this.bridgeUtil = new BridgeUtil(
 			this.web3,

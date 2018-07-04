@@ -18,18 +18,8 @@ class BridgeValidator {
 	 *
 	 * @param      {object}  options  The options
 	 */
-	constructor(MAINWEB3HOSTWS, MAINCONTRACTADDRESS, FOREIGNWEB3HOSTWS,
-		FOREIGNCONTRACTADDRESS, KEYFILE, STARTBLOCKMAIN, STARTBLOCKFOREIGN, POLLTIME,RESCAN) {
-
-		this.MAINWEB3HOSTWS = MAINWEB3HOSTWS;
-		this.MAINCONTRACTADDRESS = MAINCONTRACTADDRESS;
-		this.FOREIGNWEB3HOSTWS = FOREIGNWEB3HOSTWS;
-		this.FOREIGNCONTRACTADDRESS = FOREIGNCONTRACTADDRESS;
-		this.KEYFILE = KEYFILE;
-		this.STARTBLOCKMAIN = STARTBLOCKMAIN;
-		this.STARTBLOCKFOREIGN = STARTBLOCKFOREIGN;
-		this.POLLTIME = POLLTIME || 2000;
-		this.RESCAN = RESCAN;
+	constructor(options) {
+		this.options = options
 	}
 
 	/**
@@ -39,19 +29,10 @@ class BridgeValidator {
 	go() {
 		logger.info('bootstrapping validator');
 
-		this.signKey = require(this.KEYFILE);
-		logger.info('signer identity %s',this.signKey.public);
+		const signKey = require(this.options.keyFile);
+		logger.info('signer identity %s', signKey.public);
 
-		this.foreignBridgeWatcher = new ForeignBridgeWatcher(
-			this.MAINWEB3HOSTWS,
-			this.FOREIGNWEB3HOSTWS,
-			this.MAINCONTRACTADDRESS,
-			this.FOREIGNCONTRACTADDRESS,
-			this.STARTBLOCKMAIN,
-			this.STARTBLOCKFOREIGN,
-			this.KEYFILE,
-			this.RESCAN
-		);
+		this.foreignBridgeWatcher = new ForeignBridgeWatcher(this.options, signKey);
 
 	}
 }

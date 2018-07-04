@@ -7,26 +7,23 @@ const BridgeUtil = require('./BridgeUtil');
 const idlePollTimeout = 10000; // 10s
 
 class ForeignBridgeWatcher {
-	constructor(mainWebsocketURL, foreignWebsocketURL, homeBridgeContractAddress, foreignBridgeContractAddress, startBlockMain, startBlockForeign, keyFile, rescan) {
-		logger.info('starting bridge %s - startblock %d', foreignWebsocketURL, startBlockForeign);
+	constructor(options, signKey) {
+		logger.info('starting bridge %s', options.foreignWebsocketURL);
 
-		this.mainWebsocketURL = mainWebsocketURL;
-		this.foreignWebsocketURL = foreignWebsocketURL;
-		this.web3 = new Web3(new Web3.providers.WebsocketProvider(foreignWebsocketURL));
-		this.bridge = new this.web3.eth.Contract(ForeignERC777Bridge.abi, foreignBridgeContractAddress);
-		this.startBlock = startBlockForeign;
-		this.startBlockMain = startBlockMain;
-		this.homeBridgeContractAddress = homeBridgeContractAddress;
-		this.keyFile = keyFile;
-		this.signKey = require(this.keyFile);
+		this.web3 = new Web3(new Web3.providers.WebsocketProvider(options.foreignWebsocketURL));
+		this.bridge = new this.web3.eth.Contract(ForeignERC777Bridge.abi, options.foreignContractAddress);
+
+		this.options = options
+		this.signKey = signKey;
+
 		this.bridgeUtil = new BridgeUtil(
 			this.web3,
 			this.bridge,
 			this.processRange,
-			this.startBlock,
-			idlePollTimeout,
+			options.startBlockMain,
+			options.pollInterval,
 			this,
-			rescan,
+			options.rescan,
 			this.signKey.public
 		);
 		this.tokenwatchers = [];
@@ -44,11 +41,11 @@ class ForeignBridgeWatcher {
 	addERC20Watcher(address) {
 		let watcher = new ERC20Watcher(
 			// Only on foreign net for testing
-			this.foreignWebsocketURL,
+			this.options.foreignWebsocketURL,
 			address,
-			this.startBlockMain,
-			this.homeBridgeContractAddress,
-			this.keyFile,
+			this.options.startBlockMain,
+			this.options.mainContractAddress,
+			this.signKey,
 			this.bridge);
 		this.tokenwatchers.push(watcher);
 	}
