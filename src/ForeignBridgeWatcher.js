@@ -48,8 +48,7 @@ class ForeignBridgeWatcher {
 			return
 		}
 		const watcher = new ERC20Watcher(
-			// Only on foreign net for testing
-			this.options.foreignWebsocketURL,
+			this.options.mainWebsocketURL,
 			address,
 			this.options.startBlockMain,
 			this.options.mainContractAddress,
