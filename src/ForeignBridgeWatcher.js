@@ -6,6 +6,9 @@ const BridgeUtil = require('./BridgeUtil');
 
 const idlePollTimeout = 10000; // 10s
 
+/**
+ * Watch events on the Foreign bridge contract.
+ */
 class ForeignBridgeWatcher {
 	constructor(options, signKey) {
 		logger.info('starting bridge %s', options.foreignWebsocketURL);
@@ -89,6 +92,7 @@ class ForeignBridgeWatcher {
 		const eventHandlers = {
 			TokenAdded: this.onTokenAdded,
 			MintRequestSigned: this.onMintRequestSigned,
+			MintRequestExecuted: this.onMintRequestExecuted,
 			ValidatorAdded: this.onValidatorAdded
 		}
 
@@ -101,10 +105,12 @@ class ForeignBridgeWatcher {
 		}
 	}
 
+	// New token to share between networks has been registered.
 	async onTokenAdded(contract, event) {
 		this.addERC20Watcher(event.returnValues._mainToken, event.foreignTx.blockNumber)
 	}
 
+	// Request to mint token on foreign network has been validated by a validator node.
 	async onMintRequestSigned(contract, event) {
 		// if (event.foreignTx.from.toLowerCase() == this.signKey.public.toLowerCase()) {
 		// 	logger.info('Marking MintRequestSigned with TxHash %s as processed ( txhash %s )', event.returnValues._mintRequestsHash, event.transactionHash);
@@ -113,6 +119,12 @@ class ForeignBridgeWatcher {
 		// 		event: event,
 		// 	});
 		// }
+	}
+
+	// Request was validated by enough nodes and the ERC777 tokens have been minted to the address of the owner
+	// on the foreign net.
+	async onMintRequestExecuted() {
+
 	}
 
 	async onValidatorAdded(contract, event) {

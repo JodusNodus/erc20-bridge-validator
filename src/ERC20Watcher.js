@@ -7,6 +7,9 @@ const EthereumTx = require('ethereumjs-tx');
 
 const idlePollTimeout = 10000; // 10s
 
+/**
+ * Watch for transfers from a registered ERC20 token to the bridge contract.
+ */
 class ERC20Watcher {
 	constructor(web3WebsocketUrl, contractAddress, startBlock, tokenRecipient, signKey, foreignBridge) {
 		logger.info('starting ERC20 watcher %s - contract %s', web3WebsocketUrl, contractAddress);
@@ -105,6 +108,10 @@ class ERC20Watcher {
 		}
 	}
 
+	/**
+	 * Transaction was send to the bridge.
+	 * Validate and sign the request for crossing the bridge.
+	 */
 	bridgeToken(token, txhash, from, value) {
 
 		// get a unique hash for this bridge request + this signer
