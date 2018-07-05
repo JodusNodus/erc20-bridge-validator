@@ -36,24 +36,19 @@ class ERC20Watcher {
 			.then(() => {})
 	}
 
-	processRange(contract, startBlock, endBlock) {
+	async processRange(contract, startBlock, endBlock) {
 		logger.info('processRange : Reading Events %s from %d to %d', this.contractAddress, startBlock, endBlock);
-		return contract
-			.getPastEvents('allEvents', {
-				fromBlock: startBlock,
-				toBlock: endBlock
-			})
+		let events = await contract.getPastEvents('allEvents', {
+			fromBlock: startBlock,
+			toBlock: endBlock
+		})
+		events = await Promise.all(events.map(e => this.eventToTx(e)))
 
-			.then((events) => Promise.all(events.map(e => this.eventToTx(e))))
-			.then((events) => Promise.all(events.map(e => this.processEvent(contract, e))))
-			.then(promises => Promise.all(promises))
-			.then(() => {
-				return Promise.resolve(endBlock);
-			})
-			.catch((e) => {
-				return Promise.reject(e);
-			})
-
+		for (const evt of events) {
+			await this.processEvent(contract, evt)
+		}
+		
+		return endBlock
 	}
 
 	eventToTx(event) {
@@ -65,45 +60,49 @@ class ERC20Watcher {
 			});
 	}
 
-	processEvent(contract, event) {
-		//logger.info('%j', event);
-		return this.bridgeUtil.getTx(event.transactionHash)
-			.then((txHashLog) => {
-				if (txHashLog) {
-					logger.info('Skipping already processed Tx %s', event.transactionHash);
-					return Promise.resolve();
-				}
-				switch (event.event) {
-					case 'Transfer':
-						if (event.returnValues.to.toLowerCase() != this.tokenRecipient.toLowerCase()) {
-							// transfer to another address than the bridge.. Not interested in this
-						} else {
-							var t = {
-								token: event.foreignTx.to.toLowerCase(),
-								txhash: event.transactionHash,
-								from: event.returnValues.from.toLowerCase(),
-								value: 1,
-							};
-							logger.info('Transfer event received %s', JSON.stringify(t, null, 4));
-							return this.bridgeToken(t.token, t.txhash, t.from, t.value)
-								.then((myBridgeTxHash) => {
-									return this.bridgeUtil.markTx(event.transactionHash, {
-										date: Date.now(),
-										myBridgeTxHash: myBridgeTxHash,
-									});
-								})
-								.catch((e) => {
-									logger.info('Bridge signing failed %s', e);
-									return Promise.reject(e);
-								});
-						}
-						break;
-					default:
-						return Promise.resolve();
-						break;
-				}
-			});
+	async processEvent(contract, event) {
+		logger.info('erc20 event : %s', event.event);
 
+		const txHashLog = await this.bridgeUtil.getTx(event.transactionHash)
+		if (txHashLog) {
+			logger.info('Skipping already processed Tx %s', event.transactionHash);
+			return;
+		}
+
+		const eventHandlers = {
+			Transfer: this.onTransfer
+		}
+
+		const eventHandler = eventHandlers[event.event]
+
+		if (eventHandler) {
+			await eventHandler.call(this, contract, event)
+		} else {
+			logger.info('unhandled event %s', event.event);
+		}
+	}
+
+	async onTransfer(contract, event) {
+		await this.bridgeUtil.markTx(event.transactionHash)
+
+		if (event.returnValues.to.toLowerCase() != this.tokenRecipient.toLowerCase()) {
+			// transfer to another address than the bridge.. Not interested in this
+		} else {
+			var t = {
+				token: event.foreignTx.to.toLowerCase(),
+				txhash: event.transactionHash,
+				from: event.returnValues.from.toLowerCase(),
+				value: event.returnValues.value,
+			};
+			logger.info('Transfer event received %s', JSON.stringify(t, null, 4));
+
+			try {
+				const myBridgeTxHash = await this.bridgeToken(t.token, t.txhash, t.from, t.value)
+			} catch(err) {
+				logger.info('Bridge signing failed %s', err);
+				await Promise.reject(err);
+			}
+		}
 	}
 
 	bridgeToken(token, txhash, from, value) {

@@ -13,6 +13,7 @@ class ForeignBridgeWatcher {
 		this.web3 = new Web3(new Web3.providers.WebsocketProvider(options.foreignWebsocketURL));
 		this.bridge = new this.web3.eth.Contract(ForeignERC777Bridge.abi, options.foreignContractAddress);
 
+		this.contractAddress = options.foreignContractAddress
 		this.options = options
 		this.signKey = signKey;
 
@@ -54,21 +55,19 @@ class ForeignBridgeWatcher {
 		this.tokenwatchers.push(watcher);
 	}
 
-	processRange(contract, startBlock, endBlock) {
-		logger.info('processRange : Reading Events from %d to %d', startBlock, endBlock);
-		return contract
-			.getPastEvents('allEvents', {
-				fromBlock: startBlock,
-				toBlock: endBlock
-			})
+	async processRange(contract, startBlock, endBlock) {
+		logger.info('processRange : Reading Events %s from %d to %d', this.contractAddress, startBlock, endBlock);
+		let events = await contract.getPastEvents('allEvents', {
+			fromBlock: startBlock,
+			toBlock: endBlock
+		})
+		events = await Promise.all(events.map(e => this.eventToTx(e)))
 
-			.then((events) => Promise.all(events.map(e => this.eventToTx(e))))
-			.then((events) => events.map(e => this.processEvent(contract, e)))
-			.then(promises => Promise.all(promises))
-			.then(() => {
-				return Promise.resolve(endBlock);
-			});
-
+		for (const evt of events) {
+			await this.processEvent(contract, evt)
+		}
+		
+		return endBlock
 	}
 
 	eventToTx(event) {
@@ -78,8 +77,15 @@ class ForeignBridgeWatcher {
 			}));
 	}
 
-	processEvent(contract, event) {
+	async processEvent(contract, event) {
 		logger.info('bridge event : %s', event.event);
+
+		const txHashLog = await this.bridgeUtil.getTx(event.transactionHash)
+		if (txHashLog) {
+			logger.info('Skipping already processed Tx %s', event.transactionHash);
+			return;
+		}
+
 		const eventHandlers = {
 			TokenAdded: this.onTokenAdded,
 			MintRequestSigned: this.onMintRequestSigned,
@@ -88,29 +94,28 @@ class ForeignBridgeWatcher {
 
 		const eventHandler = eventHandlers[event.event]
 
-		if(eventHandler) {
-			return eventHandler.call(this, contract, event)
+		if (eventHandler) {
+			await eventHandler.call(this, contract, event)
 		} else {
 			logger.info('unhandled event %s', event.event);
-			return Promise.resolve();
 		}
 	}
 
-	onTokenAdded(contract, event) {
+	async onTokenAdded(contract, event) {
 		this.addERC20Watcher(event.returnValues._mainToken, event.foreignTx.blockNumber)
 	}
 
-	onMintRequestSigned(contract, event) {
-		if (event.foreignTx.from.toLowerCase() == this.signKey.public.toLowerCase()) {
-			logger.info('Marking MintRequestSigned with TxHash %s as processed ( txhash %s )', event.returnValues._mintRequestsHash, event.transactionHash);
-			this.bridgeUtil.markTx(event.transactionHash, {
-				date: Date.now(),
-				event: event,
-			});
-		}
+	async onMintRequestSigned(contract, event) {
+		// if (event.foreignTx.from.toLowerCase() == this.signKey.public.toLowerCase()) {
+		// 	logger.info('Marking MintRequestSigned with TxHash %s as processed ( txhash %s )', event.returnValues._mintRequestsHash, event.transactionHash);
+		// 	this.bridgeUtil.markTx(event.transactionHash, {
+		// 		date: Date.now(),
+		// 		event: event,
+		// 	});
+		// }
 	}
 
-	onValidatorAdded(contract, event) {
+	async onValidatorAdded(contract, event) {
 		// we can ignore these events
 	}
 }

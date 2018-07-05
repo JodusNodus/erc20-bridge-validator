@@ -26,13 +26,11 @@ class BridgeUtil {
 		this.pollLoop();
 	}
 
-	pollLoop() {
-		this.getLastProcessedBlock(this.contract._address).then((lastProccessedBlock) => {
-			logger.info('start polling from last processed block %d', lastProccessedBlock);
-			this.poll().then(() => {
-				setTimeout(() => this.pollLoop(), this.nextPollInterval);;
-			});
-		});
+	async pollLoop() {
+		const lastProccessedBlock = await	this.getLastProcessedBlock(this.contract._address)
+		logger.info('start polling from last processed block %d', lastProccessedBlock)
+		await this.poll()
+		setTimeout(() => this.pollLoop(), this.nextPollInterval);
 	}
 
 	poll() {
