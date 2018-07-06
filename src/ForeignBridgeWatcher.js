@@ -72,6 +72,7 @@ class ForeignBridgeWatcher {
 		// Same network -> Pass web3 instance and DB scope
 		const erc777Watcher = new ERC777Watcher(
 			this.web3,
+			mainAddress,
 			foreignAddress,
 			this.options.startBlockForeign,
 			this.options.foreignContractAddress,
