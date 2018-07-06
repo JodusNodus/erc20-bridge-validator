@@ -27,40 +27,15 @@ class ERC20Watcher {
 		this.bridgeUtil = new BridgeUtil(
 			this.web3,
 			this.bridge,
-			this.processRange,
 			this.startBlock,
 			idlePollTimeout,
-			this,
+			this.processEvent,
 			true,
 			this.signKey.public + '-' + contractAddress, // scope of the DB keys
 		);
 
 		this.bridgeUtil.startPolling()
 			.then(() => {})
-	}
-
-	async processRange(contract, startBlock, endBlock) {
-		logger.info('processRange : Reading Events %s from %d to %d', this.contractAddress, startBlock, endBlock);
-		let events = await contract.getPastEvents('allEvents', {
-			fromBlock: startBlock,
-			toBlock: endBlock
-		})
-		events = await Promise.all(events.map(e => this.eventToTx(e)))
-
-		for (const evt of events) {
-			await this.processEvent(contract, evt)
-		}
-		
-		return endBlock
-	}
-
-	eventToTx(event) {
-		return this.web3.eth.getTransaction(event.transactionHash)
-			.then(tx => Object.assign({}, event, {
-				foreignTx: tx
-			})).catch((e) => {
-				debugger;
-			});
 	}
 
 	async processEvent(contract, event) {

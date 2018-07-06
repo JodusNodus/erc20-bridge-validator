@@ -23,10 +23,9 @@ class ForeignBridgeWatcher {
 		this.bridgeUtil = new BridgeUtil(
 			this.web3,
 			this.bridge,
-			this.processRange,
 			options.startBlockForeign,
 			options.pollInterval,
-			this,
+			this.processEvent,
 			options.rescan,
 			this.signKey.public
 		);
@@ -55,28 +54,6 @@ class ForeignBridgeWatcher {
 			this.signKey,
 			this.bridge);
 		this.tokenwatchers.push(watcher);
-	}
-
-	async processRange(contract, startBlock, endBlock) {
-		logger.info('processRange : Reading Events %s from %d to %d', this.contractAddress, startBlock, endBlock);
-		let events = await contract.getPastEvents('allEvents', {
-			fromBlock: startBlock,
-			toBlock: endBlock
-		})
-		events = await Promise.all(events.map(e => this.eventToTx(e)))
-
-		for (const evt of events) {
-			await this.processEvent(contract, evt)
-		}
-		
-		return endBlock
-	}
-
-	eventToTx(event) {
-		return this.web3.eth.getTransaction(event.transactionHash)
-			.then(tx => Object.assign({}, event, {
-				foreignTx: tx
-			}));
 	}
 
 	async processEvent(contract, event) {

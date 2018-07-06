@@ -2,14 +2,13 @@ const logger = require('./logs')(module);
 let db;
 
 class BridgeUtil {
-	constructor(web3, contractInstance, processRange, defaultStartBlock, pollInterval, parentScope, rescan, signerPubKey) {
+	constructor(web3, contractInstance, defaultStartBlock, pollInterval, processEvent, rescan, signerPubKey) {
 		this.web3 = web3;
 		this.contract = contractInstance;
-		this.processRange = processRange;
 		this.defaultStartBlock = defaultStartBlock;
 		this.pollInterval = pollInterval;
 		this.nextPollInterval = pollInterval;
-		this.parentScope = parentScope;
+		this.processEvent = processEvent;
 		this.rescan = rescan;
 		this.dbscope = signerPubKey;
 		db = require('./db')(this.dbscope);
@@ -65,7 +64,7 @@ class BridgeUtil {
 				logger.info('scanning %s range %d->%d (%d blocks ; %d blocks away from top of chain)',
 					this.contract._address, fromBlock, toBlock, toBlock - fromBlock, currentBlock - fromBlock);
 
-				return this.processRange.bind(this.parentScope)(this.contract, fromBlock, toBlock, this.parentScope)
+				return this.processRange(this.contract, fromBlock, toBlock)
 					.then((lastProcessedBlock) => {
 						// unless we're at the end of the chain - continue immediately
 						if (lastProcessedBlock < currentBlock) {
@@ -83,6 +82,30 @@ class BridgeUtil {
 						logger.error('processRange failed: %s', e);
 						return Promise.resolve();
 					});
+			});
+	}
+
+	async processRange(contract, startBlock, endBlock) {
+		logger.info('processRange : Reading Events %s from %d to %d', contract._address, startBlock, endBlock);
+		let events = await contract.getPastEvents('allEvents', {
+			fromBlock: startBlock,
+			toBlock: endBlock
+		})
+		events = await Promise.all(events.map(e => this.eventToTx(e)))
+
+		for (const evt of events) {
+			await this.processEvent(contract, evt)
+		}
+		
+		return endBlock
+	}
+
+	eventToTx(event) {
+		return this.web3.eth.getTransaction(event.transactionHash)
+			.then(tx => Object.assign({}, event, {
+				foreignTx: tx
+			})).catch((e) => {
+				debugger;
 			});
 	}
 
