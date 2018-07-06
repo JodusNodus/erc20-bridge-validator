@@ -15,7 +15,7 @@ class ERC20Watcher {
 		logger.info('starting ERC20 watcher %s - contract %s', web3WebsocketUrl, contractAddress);
 
 		this.web3 = new Web3(new Web3.providers.WebsocketProvider(web3WebsocketUrl));
-		this.bridge = new this.web3.eth.Contract(ERC20.abi, contractAddress);
+		this.contract = new this.web3.eth.Contract(ERC20.abi, contractAddress);
 
 		this.startBlock = startBlock;
 		this.tokenRecipient = tokenRecipient;
@@ -26,11 +26,11 @@ class ERC20Watcher {
 
 		this.bridgeUtil = new BridgeUtil(
 			this.web3,
-			this.bridge,
+			this.contract,
 			this.startBlock,
 			idlePollTimeout,
-			this.processEvent,
-			true,
+			this.processEvent.bind(this),
+			false,
 			this.signKey.public + '-' + contractAddress, // scope of the DB keys
 		);
 

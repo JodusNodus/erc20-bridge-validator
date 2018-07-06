@@ -2,7 +2,7 @@ const logger = require('./logs')(module);
 let db;
 
 class BridgeUtil {
-	constructor(web3, contractInstance, defaultStartBlock, pollInterval, processEvent, rescan, signerPubKey) {
+	constructor(web3, contractInstance, defaultStartBlock, pollInterval, processEvent, rescan, dbscope) {
 		this.web3 = web3;
 		this.contract = contractInstance;
 		this.defaultStartBlock = defaultStartBlock;
@@ -10,7 +10,7 @@ class BridgeUtil {
 		this.nextPollInterval = pollInterval;
 		this.processEvent = processEvent;
 		this.rescan = rescan;
-		this.dbscope = signerPubKey;
+		this.dbscope = dbscope;
 		db = require('./db')(this.dbscope);
 	}
 
@@ -88,6 +88,8 @@ class BridgeUtil {
 	async processRange(contract, startBlock, endBlock) {
 		logger.info('processRange : Reading Events %s from %d to %d', contract._address, startBlock, endBlock);
 		let events = await contract.getPastEvents('allEvents', {
+			// Only listen on events for contract at current address
+			filter: {_from: contract._address},
 			fromBlock: startBlock,
 			toBlock: endBlock
 		})
