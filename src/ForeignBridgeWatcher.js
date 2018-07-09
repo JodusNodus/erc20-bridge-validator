@@ -205,8 +205,6 @@ class ForeignBridgeWatcher {
 
 	async onWithdrawRequestGranted(contract, event) {
 		const {_withdrawRequestsHash, _transactionHash, _mainToken, _recipient, _amount, _withdrawBlock } = event.returnValues;
-		const reward = 0;
-
 		const signatures = this.withdrawRequestSignatures.get(_withdrawRequestsHash);
 
 		// This validator node hasnt catched the signatures.
@@ -220,7 +218,6 @@ class ForeignBridgeWatcher {
 			_recipient,
 			_amount,
 			_withdrawBlock,
-			reward,
 			signatures
 		);
 	}

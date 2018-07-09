@@ -43,7 +43,6 @@ class HomeBridgeWatcher {
     _recipient,
     _amount,
     _withdrawBlock,
-    reward,
     signatures) {
 		const _v = [];
 		const _r = [];
@@ -55,7 +54,7 @@ class HomeBridgeWatcher {
 			_s.push(s._s);
 		}
 
-		const call = this.contract.methods.withdraw(_mainToken, _recipient, _amount, _withdrawBlock, reward, _v, _r, _s);
+		const call = this.contract.methods.withdraw(_mainToken, _recipient, _amount, _withdrawBlock, _v, _r, _s);
 		await this.bridgeUtil.sendTx(call, this.signKey, this.contractAddress);
 	}
 }
