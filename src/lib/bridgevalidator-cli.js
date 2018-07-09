@@ -27,11 +27,6 @@ class BridgeValidatorCli {
 	 * @param      {Object}  argv    command line parameter set
 	 */
 	go(argv) {
-		// mixin the environment variables defined in .env
-		require('dotenv').config({
-			path: '.env',
-		});
-
 		const tool = require('command-line-tool');
 		const cliData = require('./cli-data');
 		const BridgeValidator = require('../bridgevalidator.js');
@@ -55,7 +50,7 @@ class BridgeValidatorCli {
 			!options.mainContractAddress ||
 			!options.foreignWebsocketURL ||
 			!options.foreignContractAddress ||
-			!options.keyFile
+			!options.seed
 		) {
 			options.help = true;
 			console.log(options);

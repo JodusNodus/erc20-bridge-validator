@@ -1,4 +1,6 @@
 const Web3 = require("web3");
+const Wallet = require('ethereumjs-wallet');
+const hdkey = require('ethereumjs-wallet/hdkey');
 const HomeBridgeWatcher = require('./HomeBridgeWatcher');
 const ForeignBridgeWatcher = require('./ForeignBridgeWatcher');
 const logger = require('./logs')(module);
@@ -25,7 +27,13 @@ class BridgeValidator {
 	go() {
 		logger.info('bootstrapping validator');
 
-		const signKey = require(this.options.keyFile);
+		const privateKey = hdkey.fromMasterSeed(this.options.seed)._hdkey._privateKey;
+		const wallet = Wallet.fromPrivateKey(privateKey);
+		const signKey = { 
+			private: wallet.getPrivateKeyString(),
+			public: wallet.getAddressString()
+		}
+
 		logger.info('signer identity %s', signKey.public);
 
 		const connections = {

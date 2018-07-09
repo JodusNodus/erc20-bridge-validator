@@ -17,9 +17,9 @@ exports.definitions = [{
 	type: String,
 	description: 'sidechain bridge contract address.',
 }, {
-	name: 'keyFile',
+	name: 'seed',
 	type: String,
-	description: 'file containing the Ethereum key to sign bridge requests with.',
+	description: 'validator seed',
 }, {
 	name: 'startBlockMain',
 	type: Number,
