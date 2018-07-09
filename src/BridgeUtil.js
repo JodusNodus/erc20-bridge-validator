@@ -161,7 +161,7 @@ class BridgeUtil {
 		});
 	}
 
-	async sendTx(call, fromKey, to, web3=this.web3) {
+	async sendTx(call, fromKey, to) {
 		// Transaction must be send with the provided validator key pair (signKey).
 		// Web3 doesnt allow this so a custom transaction must be created.
 		let data = call.encodeABI();
@@ -201,10 +201,6 @@ class BridgeUtil {
 		logger.info('Bridge tx generated & signed');
 
 		return await this.web3.eth.sendSignedTransaction('0x' + serializedTx)
-			.on('receipt', (receipt) => {
-				logger.info('Bridge transaction sent. Tx %j', receipt);
-				return receipt;
-			});
 	}
 }
 

@@ -1,9 +1,5 @@
-// 'use strict';
-//import logger from './logs';
-//import bridgelib from '../../erc20-bridge/bridgelib';
-//import foreignBridge from './foreignBridge';
-
-const bridgelib = require('../../erc20-bridge/bridgelib');
+const Web3 = require("web3");
+const HomeBridgeWatcher = require('./HomeBridgeWatcher');
 const ForeignBridgeWatcher = require('./ForeignBridgeWatcher');
 const logger = require('./logs')(module);
 
@@ -32,7 +28,14 @@ class BridgeValidator {
 		const signKey = require(this.options.keyFile);
 		logger.info('signer identity %s', signKey.public);
 
-		this.foreignBridgeWatcher = new ForeignBridgeWatcher(this.options, signKey);
+		const connections = {
+			home: new Web3(new Web3.providers.WebsocketProvider(this.options.mainWebsocketURL)),
+			foreign: new Web3(new Web3.providers.WebsocketProvider(this.options.foreignWebsocketURL))
+		}
+
+		const bridges = {}
+		bridges.home = new HomeBridgeWatcher(this.options, connections, bridges, signKey);
+		bridges.foreign = new ForeignBridgeWatcher(this.options, connections, bridges, signKey);
 
 	}
 }
