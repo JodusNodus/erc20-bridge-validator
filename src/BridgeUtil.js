@@ -1,4 +1,5 @@
 const logger = require('./logs')(module);
+const EthereumTx = require('ethereumjs-tx');
 let db;
 
 class BridgeUtil {
@@ -158,6 +159,52 @@ class BridgeUtil {
 			}
 			return Promise.resolve();
 		});
+	}
+
+	async sendTx(call, fromKey, to, web3=this.web3) {
+		// Transaction must be send with the provided validator key pair (signKey).
+		// Web3 doesnt allow this so a custom transaction must be created.
+		let data = call.encodeABI();
+		const privateKey = Buffer.from(fromKey.private, 'hex');
+
+		let [nonce, gasPrice, balance, gasEstimate] = await Promise.all([
+			this.web3.eth.getTransactionCount(fromKey.public, 'pending'),
+			this.web3.eth.getGasPrice(),
+			this.web3.eth.getBalance(fromKey.public),
+			call.estimateGas(),
+		])
+
+		// add gas because you might be the one minting tokens
+		// and the gas calculation does not know that yet.
+		gasEstimate = parseInt(gasEstimate) + 300000;
+
+		const txPriceBN = (new this.web3.utils.BN(gasPrice)).mul(new this.web3.utils.BN(gasEstimate));
+		const balanceBN = new this.web3.utils.BN(balance);
+
+		if (balanceBN.lt(txPriceBN)) {
+			logger.error('Balance of signer (%s) is too low.. (%s Wei)', fromKey.public, balanceBN.toString());
+			return Promise.reject(new Error('Balance of signer too low to execute Tx'));
+		}
+
+		const txParams = {
+			nonce: new this.web3.utils.BN(nonce),
+			gasPrice: new this.web3.utils.BN(gasPrice),
+			gasLimit: new this.web3.utils.BN(gasEstimate),
+			to,
+			data
+		};
+
+		const tx = new EthereumTx(txParams);
+		tx.sign(privateKey);
+		const serializedTx = tx.serialize().toString('hex');
+
+		logger.info('Bridge tx generated & signed');
+
+		return await this.web3.eth.sendSignedTransaction('0x' + serializedTx)
+			.on('receipt', (receipt) => {
+				logger.info('Bridge transaction sent. Tx %j', receipt);
+				return receipt;
+			});
 	}
 }
 

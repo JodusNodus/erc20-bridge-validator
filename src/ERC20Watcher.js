@@ -3,7 +3,6 @@ const logger = require('./logs')(module);
 const ERC20 = require('../../erc20-bridge/build/contracts/ERC20.json');
 const bridgeLib = require('../../erc20-bridge/bridgelib')();
 const BridgeUtil = require('./BridgeUtil');
-const EthereumTx = require('ethereumjs-tx');
 
 const idlePollTimeout = 10000; // 10s
 
@@ -94,7 +93,7 @@ class ERC20Watcher {
 		const signRequestHash = bridgeLib.createSignRequestHash(mintRequestHash, this.signKey.public);
 
 		// check if this hash is already in the bridge.
-		return this.foreignBridge.methods.signRequestsDone(signRequestHash).call().then((signRequestExists) => {
+		return this.foreignBridge.methods.signedRequests(signRequestHash).call().then((signRequestExists) => {
 
 			if (signRequestExists) {
 				logger.info('Validator %s already validated this with signRequestHash=%s', this.signKey.public, signRequestHash);
@@ -107,49 +106,7 @@ class ERC20Watcher {
 
 
 			let call = this.foreignBridge.methods.signMintRequest(txhash, token, from, value, validatorSignature.v, validatorSignature.r, validatorSignature.s);
-
-			let data = call.encodeABI();
-
-			const privateKey = Buffer.from(this.signKey.private, 'hex');
-
-			return Promise.all([
-				this.web3.eth.getTransactionCount(this.signKey.public, 'pending'),
-				this.web3.eth.getGasPrice(),
-				this.web3.eth.getBalance(this.signKey.public),
-				//call.estimateGas(),
-			]).then(([nonce, gasPrice, balance]) => {
-
-				// add gas because you might be the one minting tokens
-				// and the gas calculation does not know that yet.
-				let gasEstimate = 500000; //parseInt(gasEstimate) + 300000;
-
-				const txPriceBN = (new this.web3.utils.BN(gasPrice)).mul(new this.web3.utils.BN(gasEstimate));
-				const balanceBN = new this.web3.utils.BN(balance);
-
-				if (balanceBN.lt(txPriceBN)) {
-					logger.error('Balance of signer (%s) is too low.. (%s Wei)', this.signKey.public, balanceBN.toString());
-					return Promise.reject(new Error('Balance of signer too low to execute Tx'));
-				}
-
-				const txParams = {
-					nonce: new this.web3.utils.BN(nonce),
-					gasPrice: new this.web3.utils.BN(gasPrice),
-					gasLimit: new this.web3.utils.BN(gasEstimate),
-					to: this.foreignBridge._address,
-					data: data
-				};
-
-				const tx = new EthereumTx(txParams);
-				tx.sign(privateKey);
-				const serializedTx = tx.serialize().toString('hex');
-
-				logger.info('Bridge tx generated & signed');
-
-				return this.web3.eth.sendSignedTransaction('0x' + serializedTx).on('receipt', (receipt) => {
-					logger.info('Bridge transaction sent. Tx %j', receipt);
-					return receipt;
-				});
-			});
+			return this.bridgeUtil.sendTx(call, this.signKey, this.foreignBridge._address);
 		});
 	}
 }

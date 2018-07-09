@@ -1,6 +1,7 @@
 const Web3 = require('web3');
 const logger = require('./logs')(module);
 const ForeignERC777Bridge = require('../../erc20-bridge/build/contracts/ForeignERC777Bridge.json');
+const HomeERC20Bridge = require('../../erc20-bridge/build/contracts/HomeERC20Bridge.json');
 const ERC20Watcher = require('./ERC20Watcher');
 const ERC777Watcher = require('./ERC777Watcher');
 const BridgeUtil = require('./BridgeUtil');
@@ -16,6 +17,7 @@ class ForeignBridgeWatcher {
 
 		this.web3 = new Web3(new Web3.providers.WebsocketProvider(options.foreignWebsocketURL));
 		this.bridge = new this.web3.eth.Contract(ForeignERC777Bridge.abi, options.foreignContractAddress);
+		this.homeBridge = new this.web3.eth.Contract(HomeERC20Bridge.abi, options.mainContractAddress);
 
 		this.contractAddress = options.foreignContractAddress
 		this.options = options
@@ -32,6 +34,8 @@ class ForeignBridgeWatcher {
 			this.dbscope
 		);
 		this.tokenwatchers = [];
+
+		this.withdrawRequestSignatures = new Map();
 
 		this.bridgeUtil.startPolling()
 			.then(() => this.startERC20Listeners())
@@ -82,27 +86,34 @@ class ForeignBridgeWatcher {
 	}
 
 	async processEvent(contract, event) {
-		logger.info('bridge event : %s', event.event);
-
-		const txHashLog = await this.bridgeUtil.getTx(event.transactionHash)
-		if (txHashLog) {
-			logger.info('Skipping already processed Tx %s', event.transactionHash);
+		if (!event.event) {
 			return;
 		}
+		logger.info('bridge event : %s %s', event.event, event.transactionHash);
 
 		const eventHandlers = {
 			TokenAdded: this.onTokenAdded,
 			MintRequestSigned: this.onMintRequestSigned,
 			MintRequestExecuted: this.onMintRequestExecuted,
-			ValidatorAdded: this.onValidatorAdded
+			ValidatorAdded: this.onValidatorAdded,
+			WithdrawRequestSigned: this.onWithdrawRequestSigned,
+			WithdrawRequestGranted: this.onWithdrawRequestGranted
 		}
 
 		const eventHandler = eventHandlers[event.event]
 
 		if (eventHandler) {
+			// Make sure event is only handled once
+			const eventHash = this.web3.utils.sha3(event.transactionHash + event.logIndex);
+
+			const txHashLog = await this.bridgeUtil.getTx(eventHash);
+			if (txHashLog) {
+				logger.info('Skipping already processed event %s', event.transactionHash);
+				return;
+			}
+
+			await this.bridgeUtil.markTx(eventHash);
 			await eventHandler.call(this, contract, event)
-		} else {
-			logger.info('unhandled event %s', event.event);
 		}
 	}
 
@@ -131,6 +142,50 @@ class ForeignBridgeWatcher {
 	async onValidatorAdded(contract, event) {
 		// we can ignore these events
 	}
+
+	// Collect all request signatures
+	async onWithdrawRequestSigned(contract, event) {
+		const {_withdrawRequestsHash, _signer, _v, _r, _s} = event.returnValues;
+		let signatures = this.withdrawRequestSignatures.get(_withdrawRequestsHash);
+		if (!signatures) {
+			signatures = [];
+			this.withdrawRequestSignatures.set(_withdrawRequestsHash, signatures);
+		}
+
+		// Check if signature hasnt been added already
+		if(signatures.find(s => s._signer === _signer)) {
+			return;
+		}
+
+		signatures.push({ _v, _r, _s, _signer });
+	}
+
+	async onWithdrawRequestGranted(contract, event) {
+		const {_withdrawRequestsHash, _transactionHash, _mainToken, _recipient, _amount, _withdrawBlock } = event.returnValues;
+
+		const reward = 0;
+
+		const _v = [];
+		const _r = [];
+		const _s = [];
+
+		const signatures = this.withdrawRequestSignatures.get(_withdrawRequestsHash);
+
+		// This validator node hasnt catched the signatures.
+		if (signatures.length <= 0) {
+			return;
+		}
+
+		for (const s of signatures) {
+			_v.push(s._v);
+			_r.push(s._r);
+			_s.push(s._s);
+		}
+
+		const call = this.homeBridge.methods.withdraw(_mainToken, _recipient, _amount, _withdrawBlock, reward, _v, _r, _s);
+		const res = await this.bridgeUtil.sendTx(call, this.signKey, this.homeBridge._address);
+	}
+
 }
 
 module.exports = ForeignBridgeWatcher;
