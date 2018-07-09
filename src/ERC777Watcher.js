@@ -69,6 +69,10 @@ class ERC777Watcher {
 	async onSent(contract, event) {
 		const { from, to, amount } = event.returnValues
 
+		if (amount <= 0) {
+			return;
+		}
+
 		if (to.toLowerCase() != this.tokenRecipient.toLowerCase()) {
 			// transfer to another address than the bridge.. Not interested in this
 		} else {

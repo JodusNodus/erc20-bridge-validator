@@ -68,21 +68,26 @@ class ERC20Watcher {
 	async onTransfer(contract, event) {
 		if (event.returnValues.to.toLowerCase() != this.tokenRecipient.toLowerCase()) {
 			// transfer to another address than the bridge.. Not interested in this
-		} else {
-			const t = {
-				token: event.foreignTx.to.toLowerCase(),
-				txhash: event.transactionHash,
-				from: event.returnValues.from.toLowerCase(),
-				value: event.returnValues.value,
-			};
-			logger.info('Transfer event received %s', JSON.stringify(t, null, 4));
+			return;
+		} 
+		const t = {
+			token: event.foreignTx.to.toLowerCase(),
+			txhash: event.transactionHash,
+			from: event.returnValues.from.toLowerCase(),
+			value: event.returnValues.value,
+		};
 
-			try {
-				await this.foreignBridge.signMintRequest(t.token, t.txhash, t.from, t.value)
-			} catch(err) {
-				logger.info('Bridge signing failed %s', err);
-				await Promise.reject(err);
-			}
+		if (t.value <= 0) {
+			return;
+		}
+
+		logger.info('Transfer event received %s', JSON.stringify(t, null, 4));
+
+		try {
+			await this.foreignBridge.signMintRequest(t.token, t.txhash, t.from, t.value)
+		} catch (err) {
+			logger.info('Bridge signing failed %s', err);
+			await Promise.reject(err);
 		}
 	}
 }
