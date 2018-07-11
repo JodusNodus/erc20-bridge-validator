@@ -1,18 +1,18 @@
-const Web3 = require('web3');
 const logger = require('./logs')(module);
-const ERC777 = require('../../erc20-bridge/build/contracts/ERC777Token.json');
+const ERC20 = require('../../erc20-bridge/build/contracts/ERC20.json');
 const bridgeLib = require('../../erc20-bridge/bridgelib')();
 const BridgeUtil = require('./BridgeUtil');
 
 /**
- * Watch for transfers from the ERC777 token to the foreign bridge contract.
+ * Watch for transfers from a registered ERC20 token to the bridge contract.
  */
-class ERC777Watcher {
+class HomeTokenWatcher {
 	constructor(web3, mainTokenAdress, foreignTokenAdress, startBlock, tokenRecipient, signKey, idlePollTimeout, bridges) {
-		logger.info('starting ERC777 watcher contract %s', foreignTokenAdress);
+		logger.info('starting home token watcher %s', mainTokenAdress);
 
 		this.web3 = web3;
-		this.contract = new this.web3.eth.Contract(ERC777.abi, foreignTokenAdress);
+		this.contractAddress = mainTokenAdress;
+		this.contract = new this.web3.eth.Contract(ERC20.abi, this.contractAddress);
 
 		this.startBlock = startBlock;
 		this.tokenRecipient = tokenRecipient;
@@ -31,7 +31,7 @@ class ERC777Watcher {
 			idlePollTimeout,
 			this.processEvent.bind(this),
 			false,
-			this.signKey.public + '-' + foreignTokenAdress, // scope of the DB keys
+			this.signKey.public + this.contractAddress,
 		);
 
 		this.bridgeUtil.startPolling()
@@ -42,11 +42,10 @@ class ERC777Watcher {
 		if (!event.event) {
 			return;
 		}
-		logger.info('erc777 event: %s', event.event);
+		logger.info('erc20 event: %s', event.event);
 
 		const eventHandlers = {
-			Sent: this.onSent,
-			WithdrawRequestSigned: this.onWithdrawRequestSigned
+			Transfer: this.onTransfer
 		}
 
 		const eventHandler = eventHandlers[event.event]
@@ -66,24 +65,32 @@ class ERC777Watcher {
 		}
 	}
 
-	async onSent(contract, event) {
-		const { from, to, amount } = event.returnValues
+	async onTransfer(contract, event) {
+		if (event.returnValues.to.toLowerCase() != this.tokenRecipient.toLowerCase()) {
+			// transfer to another address than the bridge.. Not interested in this
+			return;
+		} 
+		const t = {
+			token: event.foreignTx.to.toLowerCase(),
+			txhash: event.transactionHash,
+			from: event.returnValues.from.toLowerCase(),
+			value: event.returnValues.value,
+		};
 
-		if (amount <= 0) {
+		if (t.value <= 0) {
 			return;
 		}
 
-		if (to.toLowerCase() != this.tokenRecipient.toLowerCase()) {
-			// transfer to another address than the bridge.. Not interested in this
-		} else {
-			await this.foreignBridge.signWithdrawRequest(this.mainTokenAdress, event.transactionHash, event.blockNumber, from, amount)
+		logger.info('Transfer event received %s', JSON.stringify(t, null, 4));
+
+		try {
+			await this.foreignBridge.signMintRequest(t.token, t.txhash, t.from, t.value)
+		} catch (err) {
+			logger.info('Bridge signing failed %s', err);
+			await Promise.reject(err);
 		}
-	}
-
-	async onWithdrawRequestSigned(contract, event) {
-
 	}
 }
 
 
-module.exports = ERC777Watcher;
+module.exports = HomeTokenWatcher;

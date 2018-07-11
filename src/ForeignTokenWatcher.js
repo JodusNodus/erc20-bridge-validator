@@ -1,18 +1,18 @@
+const Web3 = require('web3');
 const logger = require('./logs')(module);
 const ERC20 = require('../../erc20-bridge/build/contracts/ERC20.json');
 const bridgeLib = require('../../erc20-bridge/bridgelib')();
 const BridgeUtil = require('./BridgeUtil');
 
 /**
- * Watch for transfers from a registered ERC20 token to the bridge contract.
+ * Watch for transfers from the ERC20 token to the foreign bridge contract.
  */
-class ERC20Watcher {
+class ForeignTokenWatcher {
 	constructor(web3, mainTokenAdress, foreignTokenAdress, startBlock, tokenRecipient, signKey, idlePollTimeout, bridges) {
-		logger.info('starting ERC20 watcher contract %s', mainTokenAdress);
+		logger.info('starting foreign token watcher %s', foreignTokenAdress);
 
 		this.web3 = web3;
-		this.contractAddress = mainTokenAdress;
-		this.contract = new this.web3.eth.Contract(ERC20.abi, this.contractAddress);
+		this.contract = new this.web3.eth.Contract(ERC20.abi, foreignTokenAdress);
 
 		this.startBlock = startBlock;
 		this.tokenRecipient = tokenRecipient;
@@ -31,7 +31,7 @@ class ERC20Watcher {
 			idlePollTimeout,
 			this.processEvent.bind(this),
 			false,
-			this.signKey.public + this.contractAddress,
+			this.signKey.public + '-' + foreignTokenAdress, // scope of the DB keys
 		);
 
 		this.bridgeUtil.startPolling()
@@ -45,7 +45,7 @@ class ERC20Watcher {
 		logger.info('erc20 event: %s', event.event);
 
 		const eventHandlers = {
-			Transfer: this.onTransfer
+			Transfer: this.onTransfer,
 		}
 
 		const eventHandler = eventHandlers[event.event]
@@ -83,14 +83,9 @@ class ERC20Watcher {
 
 		logger.info('Transfer event received %s', JSON.stringify(t, null, 4));
 
-		try {
-			await this.foreignBridge.signMintRequest(t.token, t.txhash, t.from, t.value)
-		} catch (err) {
-			logger.info('Bridge signing failed %s', err);
-			await Promise.reject(err);
-		}
+		await this.foreignBridge.signWithdrawRequest(this.mainTokenAdress, t.txhash, event.blockNumber, t.from, t.value);
 	}
 }
 
 
-module.exports = ERC20Watcher;
+module.exports = ForeignTokenWatcher;

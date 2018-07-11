@@ -46,10 +46,10 @@ class BridgeValidatorCli {
 			}
 		})
 
-		if (!options.mainWebsocketURL ||
-			!options.mainContractAddress ||
-			!options.foreignWebsocketURL ||
-			!options.foreignContractAddress ||
+		if (!options.mainWS ||
+			!options.homeBridge ||
+			!options.foreignWS ||
+			!options.foreignBridge ||
 			!options.seed
 		) {
 			options.help = true;

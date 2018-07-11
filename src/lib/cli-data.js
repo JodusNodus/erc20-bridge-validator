@@ -1,19 +1,19 @@
 'use strict';
 
 exports.definitions = [{
-	name: 'mainWebsocketURL',
+	name: 'mainWS',
 	type: String,
 	description: 'the URL of your mainchain Ethereum node WS. ex. "ws://localhost:8546"',
 }, {
-	name: 'mainContractAddress',
+	name: 'homeBridge',
 	type: String,
 	description: 'mainchain bridge contract address.',
 }, {
-	name: 'foreignWebsocketURL',
+	name: 'foreignWS',
 	type: String,
 	description: 'the URL of your sidechain Ethereum node WS. ex. "ws://localhost:8546"',
 }, {
-	name: 'foreignContractAddress',
+	name: 'foreignBridge',
 	type: String,
 	description: 'sidechain bridge contract address.',
 }, {

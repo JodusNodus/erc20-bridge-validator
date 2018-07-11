@@ -174,11 +174,10 @@ class BridgeUtil {
 			call.estimateGas(),
 		])
 
-		// add gas because you might be the one minting tokens
-		// and the gas calculation does not know that yet.
-		gasEstimate = parseInt(gasEstimate) + 300000;
+		gasPrice = new this.web3.utils.BN(gasPrice);
+		gasEstimate = new this.web3.utils.BN(gasEstimate).mul(new this.web3.utils.BN(2));
 
-		const txPriceBN = (new this.web3.utils.BN(gasPrice)).mul(new this.web3.utils.BN(gasEstimate));
+		const txPriceBN = gasPrice.mul(gasEstimate);
 		const balanceBN = new this.web3.utils.BN(balance);
 
 		if (balanceBN.lt(txPriceBN)) {
@@ -193,6 +192,7 @@ class BridgeUtil {
 			to,
 			data
 		};
+		console.log(txParams)
 
 		const tx = new EthereumTx(txParams);
 		tx.sign(privateKey);

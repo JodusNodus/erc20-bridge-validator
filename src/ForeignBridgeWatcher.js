@@ -1,18 +1,15 @@
 const logger = require('./logs')(module);
-const ForeignERC777Bridge = require('../../erc20-bridge/build/contracts/ForeignERC777Bridge.json');
-const ERC20Watcher = require('./ERC20Watcher');
-const ERC777Watcher = require('./ERC777Watcher');
+const ForeignBridge = require('../../erc20-bridge/build/contracts/ForeignBridge.json');
+const HomeTokenWatcher = require('./HomeTokenWatcher');
+const ForeignTokenWatcher = require('./ForeignTokenWatcher');
 const BridgeUtil = require('./BridgeUtil');
 const bridgeLib = require('../../erc20-bridge/bridgelib')();
-
-const idlePollTimeout = 10000; // 10s
 
 /**
  * Watch events on the Foreign bridge contract.
  */
 class ForeignBridgeWatcher {
 	constructor(options, connections, bridges, signKey) {
-		logger.info('starting foreign bridge on %s', options.foreignWebsocketURL);
 
 		this.web3 = connections.foreign;
 
@@ -20,8 +17,8 @@ class ForeignBridgeWatcher {
 		this.homeBridge = bridges.home;
 		this.connections = connections;
 
-		this.contractAddress = options.foreignContractAddress;
-		this.contract = new this.web3.eth.Contract(ForeignERC777Bridge.abi, this.contractAddress);
+		this.contractAddress = options.foreignBridge;
+		this.contract = new this.web3.eth.Contract(ForeignBridge.abi, this.contractAddress);
 
 		this.options = options;
 		this.signKey = signKey;
@@ -39,6 +36,8 @@ class ForeignBridgeWatcher {
 
 		this.withdrawRequestSignatures = new Map();
 
+    logger.info('starting home bridge on %s', options.foreignWS);
+
 		this.bridgeUtil.startPolling()
 			.then(() => this.startERC20Listeners())
 			.then(() => {})
@@ -52,7 +51,7 @@ class ForeignBridgeWatcher {
 		const tokens = await this.contract.methods.tokens().call({ from: this.signKey.public });
 
 		for (const mainAddress of tokens) {
-			// Retrieve the corresponding ERC777 token address (foreign net)
+			// Retrieve the corresponding token address (foreign net)
 			const foreignAddress = await this.contract.methods.tokenMap(mainAddress).call({ from: this.signKey.public });
 			if (foreignAddress) {
 				this.addTokenWatcher(mainAddress, foreignAddress);
@@ -68,24 +67,24 @@ class ForeignBridgeWatcher {
 		if (addressWatcher) {
 			return
 		}
-		const erc20Watcher = new ERC20Watcher(
+		const homeTokenWatcher = new HomeTokenWatcher(
 			this.connections.home,
 			mainAddress,
 			foreignAddress,
 			this.options.startBlockMain,
-			this.options.mainContractAddress,
+			this.options.homeBridge,
 			this.signKey,
 			this.options.pollInterval,
 			this.bridges);
 
-		this.tokenwatchers.push(erc20Watcher);
+		this.tokenwatchers.push(homeTokenWatcher);
 
-		const erc777Watcher = new ERC777Watcher(
+		const foreignTokenWatcher = new ForeignTokenWatcher(
 			this.connections.foreign,
 			mainAddress,
 			foreignAddress,
 			this.options.startBlockForeign,
-			this.options.foreignContractAddress,
+			this.options.foreignBridge,
 			this.signKey,
 			this.options.pollInterval,
 			this.bridges);
@@ -176,7 +175,7 @@ class ForeignBridgeWatcher {
 	async onMintRequestSigned(contract, event) {
 	}
 
-	// Request was validated by enough nodes and the ERC777 tokens have been minted to the address of the owner
+	// Request was validated by enough nodes and the tokens have been minted to the owner
 	// on the foreign net.
 	async onMintRequestExecuted() {
 

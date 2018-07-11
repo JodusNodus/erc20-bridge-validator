@@ -30,15 +30,15 @@ class BridgeValidator {
 		const privateKey = hdkey.fromMasterSeed(this.options.seed)._hdkey._privateKey;
 		const wallet = Wallet.fromPrivateKey(privateKey);
 		const signKey = { 
-			private: wallet.getPrivateKeyString(),
+			private: wallet.getPrivateKey().toString("hex"),
 			public: wallet.getAddressString()
 		}
 
 		logger.info('signer identity %s', signKey.public);
 
 		const connections = {
-			home: new Web3(new Web3.providers.WebsocketProvider(this.options.mainWebsocketURL)),
-			foreign: new Web3(new Web3.providers.WebsocketProvider(this.options.foreignWebsocketURL))
+			home: new Web3(new Web3.providers.WebsocketProvider(this.options.mainWS)),
+			foreign: new Web3(new Web3.providers.WebsocketProvider(this.options.foreignWS))
 		}
 
 		const bridges = {}
