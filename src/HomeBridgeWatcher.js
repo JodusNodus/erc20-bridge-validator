@@ -10,7 +10,7 @@ class HomeBridgeWatcher {
     this.web3 = connections.home;
     this.options = options;
 
-		this.contractAddress = options.homeBridge;
+		this.contractAddress = options.HOME_BRIDGE;
     this.contract = new this.web3.eth.Contract(HomeBridge.abi, this.contractAddress);
 
 		this.options = options;
@@ -19,14 +19,14 @@ class HomeBridgeWatcher {
 		this.bridgeUtil = new BridgeUtil(
 			this.web3,
 			this.contract,
-			options.startBlockForeign,
-			options.pollInterval,
+			options.START_BLOCK_HOME,
+			options.POLL_INTERVAL,
 			this.processEvent.bind(this),
-      options.rescan,
+      options.RESCAN,
       this.signKey.public + this.contractAddress
     );
 
-    logger.info('starting home bridge on %s', options.mainWS);
+    logger.info('starting home bridge on %s', options.HOME_URL);
 
     // No events are currently needed 
 		// this.bridgeUtil.startPolling();

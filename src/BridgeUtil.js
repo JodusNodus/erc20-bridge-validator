@@ -90,7 +90,6 @@ class BridgeUtil {
 		logger.info('processRange : Reading Events %s from %d to %d', contract._address, startBlock, endBlock);
 		let events = await contract.getPastEvents('allEvents', {
 			// Only listen on events for contract at current address
-			filter: {_from: contract._address},
 			fromBlock: startBlock,
 			toBlock: endBlock
 		})

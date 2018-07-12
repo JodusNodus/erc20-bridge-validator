@@ -17,7 +17,7 @@ class ForeignBridgeWatcher {
 		this.homeBridge = bridges.home;
 		this.connections = connections;
 
-		this.contractAddress = options.foreignBridge;
+		this.contractAddress = options.FOREIGN_BRIDGE;
 		this.contract = new this.web3.eth.Contract(ForeignBridge.abi, this.contractAddress);
 
 		this.options = options;
@@ -26,17 +26,17 @@ class ForeignBridgeWatcher {
 		this.bridgeUtil = new BridgeUtil(
 			this.web3,
 			this.contract,
-			options.startBlockForeign,
-			options.pollInterval,
+			options.START_BLOCK_FOREIGN,
+			options.POLL_INTERVAL,
 			this.processEvent.bind(this),
-			options.rescan,
+			options.RESCAN,
 			this.signKey.public + this.contractAddress
 		);
 		this.tokenwatchers = [];
 
 		this.withdrawRequestSignatures = new Map();
 
-    logger.info('starting home bridge on %s', options.foreignWS);
+    logger.info('starting home bridge on %s', options.FOREIGN_URL);
 
 		this.bridgeUtil.startPolling()
 			.then(() => this.startERC20Listeners())
@@ -71,10 +71,10 @@ class ForeignBridgeWatcher {
 			this.connections.home,
 			mainAddress,
 			foreignAddress,
-			this.options.startBlockMain,
-			this.options.homeBridge,
+			this.options.START_BLOCK_HOME,
+			this.options.HOME_BRIDGE,
 			this.signKey,
-			this.options.pollInterval,
+			this.options.POLL_INTERVAL,
 			this.bridges);
 
 		this.tokenwatchers.push(homeTokenWatcher);
@@ -83,10 +83,10 @@ class ForeignBridgeWatcher {
 			this.connections.foreign,
 			mainAddress,
 			foreignAddress,
-			this.options.startBlockForeign,
-			this.options.foreignBridge,
+			this.options.START_BLOCK_FOREIGN,
+			this.options.FOREIGN_BRIDGE,
 			this.signKey,
-			this.options.pollInterval,
+			this.options.POLL_INTERVAL,
 			this.bridges);
 	}
 

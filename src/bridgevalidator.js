@@ -1,6 +1,7 @@
 const Web3 = require("web3");
 const Wallet = require('ethereumjs-wallet');
 const hdkey = require('ethereumjs-wallet/hdkey');
+const HDWalletProvider = require('truffle-hdwallet-provider')
 const HomeBridgeWatcher = require('./HomeBridgeWatcher');
 const ForeignBridgeWatcher = require('./ForeignBridgeWatcher');
 const logger = require('./logs')(module);
@@ -27,7 +28,7 @@ class BridgeValidator {
 	go() {
 		logger.info('bootstrapping validator');
 
-		const privateKey = hdkey.fromMasterSeed(this.options.seed)._hdkey._privateKey;
+		const privateKey = hdkey.fromMasterSeed(this.options.VALIDATOR_SEED)._hdkey._privateKey;
 		const wallet = Wallet.fromPrivateKey(privateKey);
 		const signKey = { 
 			private: wallet.getPrivateKey().toString("hex"),
@@ -37,8 +38,14 @@ class BridgeValidator {
 		logger.info('signer identity %s', signKey.public);
 
 		const connections = {
-			home: new Web3(new Web3.providers.WebsocketProvider(this.options.mainWS)),
-			foreign: new Web3(new Web3.providers.WebsocketProvider(this.options.foreignWS))
+			home: new Web3(new HDWalletProvider(
+				this.options.HOME_SEED,
+				this.options.HOME_URL
+			)),
+			foreign: new Web3(new HDWalletProvider(
+				this.options.FOREIGN_SEED,
+				this.options.FOREIGN_URL
+			))
 		}
 
 		const bridges = {}
