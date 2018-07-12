@@ -17,7 +17,7 @@ class BridgeUtil {
 
 	async startPolling() {
 		if (typeof this.defaultStartBlock !== "number") {
-			this.defaultStartBlock = await this.web3.eth.getBlockNumber()
+			this.defaultStartBlock = await this.web3.eth.getBlockNumber();
 		} else if (this.rescan) {
 			logger.info('forcing rescan from startblock %d', this.defaultStartBlock);
 			this.setLastProcessedBlock(this.contract._address, this.defaultStartBlock)
@@ -97,7 +97,17 @@ class BridgeUtil {
 		events = await Promise.all(events.map(e => this.eventToTx(e)))
 
 		for (const evt of events) {
-			await this.processEvent(contract, evt)
+			if (evt.event && evt.blockNumber > startBlock) {
+				// Make sure event is only handled once
+				const eventHash = this.web3.utils.sha3(evt.transactionHash + evt.logIndex);
+				if (await this.getTx(eventHash)) {
+					logger.info('skipping already processed event %s', evt.transactionHash);
+					continue;
+				}
+
+				await this.processEvent(evt);
+				await this.markTx(eventHash);
+			}
 		}
 		
 		return endBlock
@@ -192,7 +202,6 @@ class BridgeUtil {
 			to,
 			data
 		};
-		console.log(txParams)
 
 		const tx = new EthereumTx(txParams);
 		tx.sign(privateKey);

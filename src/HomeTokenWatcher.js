@@ -38,10 +38,7 @@ class HomeTokenWatcher {
 			.then(() => {})
 	}
 
-	async processEvent(contract, event) {
-		if (!event.event) {
-			return;
-		}
+	async processEvent(event) {
 		logger.info('erc20 event: %s', event.event);
 
 		const eventHandlers = {
@@ -51,21 +48,11 @@ class HomeTokenWatcher {
 		const eventHandler = eventHandlers[event.event]
 
 		if (eventHandler) {
-			// Make sure event is only handled once
-			const eventHash = this.web3.utils.sha3(event.transactionHash + event.logIndex);
-
-			const txHashLog = await this.bridgeUtil.getTx(eventHash);
-			if (txHashLog) {
-				logger.info('Skipping already processed event %s', event.transactionHash);
-				return;
-			}
-
-			await this.bridgeUtil.markTx(eventHash);
-			await eventHandler.call(this, contract, event)
+			await eventHandler.call(this, event)
 		}
 	}
 
-	async onTransfer(contract, event) {
+	async onTransfer(event) {
 		if (event.returnValues.to.toLowerCase() != this.tokenRecipient.toLowerCase()) {
 			// transfer to another address than the bridge.. Not interested in this
 			return;

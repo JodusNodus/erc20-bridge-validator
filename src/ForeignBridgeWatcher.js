@@ -134,10 +134,7 @@ class ForeignBridgeWatcher {
 		await this.bridgeUtil.sendTx(call, this.signKey, this.contractAddress);
 	}
 
-	async processEvent(contract, event) {
-		if (!event.event) {
-			return;
-		}
+	async processEvent(event) {
 		logger.info('bridge event: %s', event.event);
 
 		const eventHandlers = {
@@ -150,29 +147,18 @@ class ForeignBridgeWatcher {
 		}
 
 		const eventHandler = eventHandlers[event.event]
-
 		if (eventHandler) {
-			// Make sure event is only handled once
-			const eventHash = this.web3.utils.sha3(event.transactionHash + event.logIndex);
-
-			const txHashLog = await this.bridgeUtil.getTx(eventHash);
-			if (txHashLog) {
-				logger.info('Skipping already processed event %s', event.transactionHash);
-				return;
-			}
-
-			await this.bridgeUtil.markTx(eventHash);
-			await eventHandler.call(this, contract, event)
+			await eventHandler.call(this, event)
 		}
 	}
 
 	// New token to share between networks has been registered.
-	async onTokenAdded(contract, event) {
+	async onTokenAdded(event) {
 		this.addTokenWatcher(event.returnValues._mainToken, event.foreignTx.blockNumber)
 	}
 
 	// Request to mint token on foreign network has been validated by a validator node.
-	async onMintRequestSigned(contract, event) {
+	async onMintRequestSigned(event) {
 	}
 
 	// Request was validated by enough nodes and the tokens have been minted to the owner
@@ -181,12 +167,12 @@ class ForeignBridgeWatcher {
 
 	}
 
-	async onValidatorAdded(contract, event) {
+	async onValidatorAdded(event) {
 		// we can ignore these events
 	}
 
 	// Collect all request signatures
-	async onWithdrawRequestSigned(contract, event) {
+	async onWithdrawRequestSigned(event) {
 		const {_withdrawRequestsHash, _signer, _v, _r, _s} = event.returnValues;
 		let signatures = this.withdrawRequestSignatures.get(_withdrawRequestsHash);
 		if (!signatures) {
@@ -202,7 +188,7 @@ class ForeignBridgeWatcher {
 		signatures.push({ _v, _r, _s, _signer });
 	}
 
-	async onWithdrawRequestGranted(contract, event) {
+	async onWithdrawRequestGranted(event) {
 		const {_withdrawRequestsHash, _transactionHash, _mainToken, _recipient, _amount, _withdrawBlock } = event.returnValues;
 		const signatures = this.withdrawRequestSignatures.get(_withdrawRequestsHash);
 
