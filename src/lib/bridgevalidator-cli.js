@@ -27,6 +27,7 @@ class BridgeValidatorCli {
 	 * @param      {Object}  argv    command line parameter set
 	 */
 	go(argv) {
+		require('dotenv').config();
 		const tool = require('command-line-tool');
 		const cliData = require('./cli-data');
 		const BridgeValidator = require('../bridgevalidator.js');
@@ -40,9 +41,12 @@ class BridgeValidatorCli {
 		}
 
 		cliData.definitions.forEach((def) => {
-			const val = this.getOptionValue(def.name, cli)
+			let val = this.getOptionValue(def.name, cli)
 			if (val !== undefined) {
-				options[def.name] = val
+				if (def.type === Number) {
+					val = parseInt(val);
+				}
+				options[def.name] = val;
 			}
 		})
 
