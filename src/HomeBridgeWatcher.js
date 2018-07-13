@@ -34,30 +34,6 @@ class HomeBridgeWatcher {
 
   async processEvent() {
   }
-
-  /**
-   * Withdraw tokens from home bridge to recipient
-   */
-	async withdraw(
-    _transactionHash,
-    _mainToken,
-    _recipient,
-    _amount,
-    _withdrawBlock,
-    signatures) {
-		const _v = [];
-		const _r = [];
-		const _s = [];
-
-		for (const s of signatures) {
-			_v.push(s._v);
-			_r.push(s._r);
-			_s.push(s._s);
-		}
-
-		const call = this.contract.methods.withdraw(_mainToken, _recipient, _amount, _withdrawBlock, _v, _r, _s);
-		await this.bridgeUtil.sendTx(call, this.signKey, this.contractAddress);
-	}
 }
 
 module.exports = HomeBridgeWatcher;

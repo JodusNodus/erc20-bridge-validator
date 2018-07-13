@@ -34,8 +34,6 @@ class ForeignBridgeWatcher {
 		);
 		this.tokenwatchers = [];
 
-		this.withdrawRequestSignatures = new Map();
-
     logger.info('starting home bridge on %s', options.FOREIGN_URL);
 
 		this.bridgeUtil.startPolling()
@@ -171,40 +169,10 @@ class ForeignBridgeWatcher {
 		// we can ignore these events
 	}
 
-	// Collect all request signatures
 	async onWithdrawRequestSigned(event) {
-		const {_withdrawRequestsHash, _signer, _v, _r, _s} = event.returnValues;
-		let signatures = this.withdrawRequestSignatures.get(_withdrawRequestsHash);
-		if (!signatures) {
-			signatures = [];
-			this.withdrawRequestSignatures.set(_withdrawRequestsHash, signatures);
-		}
-
-		// Check if signature hasnt been added already
-		if(signatures.find(s => s._signer === _signer)) {
-			return;
-		}
-
-		signatures.push({ _v, _r, _s, _signer });
 	}
 
 	async onWithdrawRequestGranted(event) {
-		const {_withdrawRequestsHash, _transactionHash, _mainToken, _recipient, _amount, _withdrawBlock } = event.returnValues;
-		const signatures = this.withdrawRequestSignatures.get(_withdrawRequestsHash);
-
-		// This validator node hasnt catched the signatures.
-		if (!signatures || signatures.length <= 0) {
-			return;
-		}
-
-		await this.homeBridge.withdraw(
-			_transactionHash,
-			_mainToken,
-			_recipient,
-			_amount,
-			_withdrawBlock,
-			signatures
-		);
 	}
 
 }

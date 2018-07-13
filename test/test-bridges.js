@@ -45,7 +45,7 @@ let foreignBridge;
 // Utility functions
 const timeout = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function pollForEvent(contract, eventName, filter={}, fromBlock) {
+async function pollForEvents(contract, eventName, filter={}, fromBlock) {
   let events = [];
   while (events.length == 0) {
     events = await contract.getPastEvents(eventName, {
@@ -55,18 +55,54 @@ async function pollForEvent(contract, eventName, filter={}, fromBlock) {
     });
     await timeout(2e3);
   }
-  return events[events.length - 1]
+  return events;
 }
 
 async function waitForEvent ({contract, event, filter, fromBlock, timeoutMs=60e3}) {
   const res = await Promise.race([
-    pollForEvent(contract, event, filter, fromBlock),
+    pollForEvents(contract, event, filter, fromBlock),
     timeout(timeoutMs)
   ]);
   if (!res) {
     throw new Error("event polling timeout");
   }
-  return res;
+  return res[res.length -1];
+}
+
+async function catchSignaturesUntilGrant(bridge, fromBlock, _transactionHash) {
+  const filter = { _transactionHash };
+
+  await waitForEvent({
+    contract: bridge,
+    event: "WithdrawRequestGranted",
+    fromBlock,
+    filter
+  });
+
+  // Collect signatures
+  const signatures = new Map();
+  const events = await pollForEvents(bridge, "WithdrawRequestSigned", filter, fromBlock);
+  for (const { returnValues } of events) {
+    signatures.set(returnValues._signer, returnValues);
+  }
+
+  const v = [];
+  const r = [];
+  const s = [];
+  let withdrawBlock;
+
+  signatures.forEach(signature => {
+    withdrawBlock = signature._withdrawBlock;
+    v.push(signature._v);
+    r.push(signature._r);
+    s.push(signature._s);
+  })
+
+  if (v.length < 1) {
+    throw new Error("Withdraw was granted but no signatures were found");
+  }
+
+  return {v, r, s, withdrawBlock};
 }
 
 async function getBalance(token, address, from=address) {
@@ -91,7 +127,7 @@ describe('Test bridge', function () {
   });
 
   it("should transfer alice's tokens from home to foreign net", async function () {
-    const amount = 1;
+    const amount = 10;
 
     const homeBalance = await getBalance(homeToken, alice); 
     const foreignBalance = await getBalance(foreignToken, alice); 
@@ -129,9 +165,23 @@ describe('Test bridge', function () {
 
     assert.ok(foreignBalance >= amount, "Alice shouldn have enough tokens to transfer");
 
+    const foreignBlockNumber = await foreignWeb3.eth.getBlockNumber();
     const homeBlockNumber = await homeWeb3.eth.getBlockNumber();
 
-    await foreignToken.methods.transfer(foreignBridge._address, amount).send({ from: alice });
+    const tx = await foreignToken.methods.transfer(foreignBridge._address, amount).send({ from: alice });
+
+    // Receive signatures until granted
+    const signatures = await catchSignaturesUntilGrant(foreignBridge, foreignBlockNumber, tx.transactionHash);
+
+    const call = homeBridge.methods
+      .withdraw(homeToken._address, alice, amount, signatures.withdrawBlock, signatures.v, signatures.r, signatures.s);
+
+    await call.send({
+      from: alice,
+      gas: Math.ceil(await call.estimateGas() * 2),
+      gasPrice: await homeWeb3.eth.getGasPrice(),
+    })
+
 
     // Wait until hometoken is transfered to alice
     await waitForEvent({
