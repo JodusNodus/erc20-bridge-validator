@@ -1,10 +1,22 @@
 const Web3 = require("web3");
+const bip39 = require('bip39');
 const Wallet = require('ethereumjs-wallet');
 const hdkey = require('ethereumjs-wallet/hdkey');
 const HDWalletProvider = require('truffle-hdwallet-provider')
 const HomeBridgeWatcher = require('./HomeBridgeWatcher');
 const ForeignBridgeWatcher = require('./ForeignBridgeWatcher');
 const logger = require('./logs')(module);
+
+function seedToSignKey(seed) {
+	seed = bip39.mnemonicToSeed(seed);
+	const privateKey = hdkey.fromMasterSeed(seed)._hdkey._privateKey;
+	const wallet = Wallet.fromPrivateKey(privateKey);
+
+	return {
+		private: wallet.getPrivateKey().toString("hex"),
+		public: wallet.getAddressString()
+	}
+}
 
 /**
  * Bootstrap the validator node
@@ -28,12 +40,7 @@ class BridgeValidator {
 	go() {
 		logger.info('bootstrapping validator');
 
-		const privateKey = hdkey.fromMasterSeed(this.options.VALIDATOR_SEED)._hdkey._privateKey;
-		const wallet = Wallet.fromPrivateKey(privateKey);
-		const signKey = { 
-			private: wallet.getPrivateKey().toString("hex"),
-			public: wallet.getAddressString()
-		}
+		const signKey = seedToSignKey(this.options.VALIDATOR_SEED);
 
 		logger.info('signer identity %s', signKey.public);
 
