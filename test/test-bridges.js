@@ -14,17 +14,18 @@ const ForeignBridge = require("../../erc20-bridge/build/contracts/ForeignBridge.
 const options = {
   HOME_TOKEN: process.env.HOME_TOKEN,
   FOREIGN_TOKEN: process.env.FOREIGN_TOKEN,
+  TEST_ACCOUNT_SEED: process.env.TEST_ACCOUNT_SEED,
   ...optionsLoader()
 };
 
 // Connections
 const connections = {
   home: new Web3(new HDWalletProvider(
-    options.HOME_SEED,
+    options.TEST_ACCOUNT_SEED,
     options.HOME_URL
   )),
   foreign: new Web3(new HDWalletProvider(
-    options.FOREIGN_SEED,
+    options.TEST_ACCOUNT_SEED,
     options.FOREIGN_URL
   ))
 }
@@ -114,6 +115,7 @@ async function getBalance(token, address, from=address) {
 describe('Test bridge', function () {
   before('Setup accounts', async function () {
     alice = (await homeWeb3.eth.getAccounts())[0];
+    console.log("ALICE:", alice);
   });
 
   before('Setup token contracts', async function () {

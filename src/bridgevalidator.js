@@ -8,13 +8,12 @@ const ForeignBridgeWatcher = require('./ForeignBridgeWatcher');
 const logger = require('./logs')(module);
 
 function seedToSignKey(seed) {
-	seed = bip39.mnemonicToSeed(seed);
-	const privateKey = hdkey.fromMasterSeed(seed)._hdkey._privateKey;
-	const wallet = Wallet.fromPrivateKey(privateKey);
-
+	const provider = new HDWalletProvider(seed)
+	const public = provider.addresses[0];
+	const private = provider.wallets[public].getPrivateKeyString().slice(2);
 	return {
-		private: wallet.getPrivateKey().toString("hex"),
-		public: wallet.getAddressString()
+		private,
+		public
 	}
 }
 
@@ -46,11 +45,11 @@ class BridgeValidator {
 
 		const connections = {
 			home: new Web3(new HDWalletProvider(
-				this.options.HOME_SEED,
+				process.env.VALIDATOR_SEED,
 				this.options.HOME_URL
 			)),
 			foreign: new Web3(new HDWalletProvider(
-				this.options.FOREIGN_SEED,
+				process.env.VALIDATOR_SEED,
 				this.options.FOREIGN_URL
 			))
 		}

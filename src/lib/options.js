@@ -17,14 +17,6 @@ exports.definitions = [{
 	description: 'sidechain bridge contract address.',
 	required: true
 }, {
-	name: 'HOME_SEED',
-	description: 'Hardware wallet seed of home net account',
-	required: true
-}, {
-	name: 'FOREIGN_SEED',
-	description: 'Hardware wallet seed of foreign net account',
-	required: true
-}, {
 	name: 'VALIDATOR_SEED',
 	description: 'Hardware wallet seed of registered validator',
 	required: true
