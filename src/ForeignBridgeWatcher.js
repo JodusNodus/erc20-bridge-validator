@@ -1,92 +1,232 @@
-const Web3 = require('web3');
-const logger = require('./logs')(module);
-const ForeignERC777Bridge = require('erc20-bridge/build/contracts/ForeignERC777Bridge.json');
-const ERC20Watcher = require('./ERC20Watcher');
-const BridgeUtil = require('./BridgeUtil');
+const logger = require("./logs")(module);
+const ForeignBridge = require("../../erc20-bridge/build/contracts/ForeignBridge.json");
+const HomeTokenWatcher = require("./HomeTokenWatcher");
+const ForeignTokenWatcher = require("./ForeignTokenWatcher");
+const BridgeUtil = require("./BridgeUtil");
+const bridgeLib = require("../../erc20-bridge/bridgelib")();
 
-const idlePollTimeout = 10000; // 10s
-
+/**
+ * Watch events on the Foreign bridge contract.
+ */
 class ForeignBridgeWatcher {
-	constructor(mainWebsocketURL, foreignWebsocketURL, homeBridgeContractAddress, foreignBridgeContractAddress, startBlock, keyFile, rescan) {
-		logger.info('starting bridge %s - startblock %d', foreignWebsocketURL, startBlock);
+  constructor(options, connections, bridges, signKey) {
+    this.web3 = connections.foreign;
 
-		this.mainWebsocketURL = mainWebsocketURL;
-		this.foreignWebsocketURL = foreignWebsocketURL;
-		this.web3 = new Web3(new Web3.providers.WebsocketProvider(foreignWebsocketURL));
-		this.bridge = new this.web3.eth.Contract(ForeignERC777Bridge.abi, foreignBridgeContractAddress);
-		this.startBlock = startBlock;
-		this.homeBridgeContractAddress = homeBridgeContractAddress;
-		this.keyFile = keyFile;
-		this.signKey = require(this.keyFile);
-		this.bridgeUtil = new BridgeUtil(
-			this.web3,
-			this.bridge,
-			this.processRange,
-			this.startBlock,
-			idlePollTimeout,
-			this,
-			rescan,
-			this.signKey.public
-		);
-		this.tokenwatchers = [];
+    this.bridges = bridges;
+    this.homeBridge = bridges.home;
+    this.connections = connections;
 
-		this.bridgeUtil.startPolling();
-	}
+    this.contractAddress = options.FOREIGN_BRIDGE;
+    this.contract = new this.web3.eth.Contract(
+      ForeignBridge.abi,
+      this.contractAddress
+    );
 
-	processRange(contract, startBlock, endBlock) {
-		logger.info('processRange : Reading Events from %d to %d', startBlock, endBlock);
-		return contract
-			.getPastEvents('allEvents', {
-				fromBlock: startBlock,
-				toBlock: endBlock
-			})
+    this.options = options;
+    this.signKey = signKey;
 
-			.then((events) => Promise.all(events.map(e => this.eventToTx(e))))
-			.then((events) => events.map(e => this.processEvent(contract, e)))
-			.then(promises => Promise.all(promises))
-			.then(() => {
-				return Promise.resolve(endBlock);
-			});
+    this.bridgeUtil = new BridgeUtil(
+      this.web3,
+      this.contract,
+      options.START_BLOCK_FOREIGN,
+      options.POLL_INTERVAL,
+      this.processEvent.bind(this),
+      options.RESCAN,
+      this.signKey.public + this.contractAddress
+    );
+    this.tokenwatchers = [];
 
-	}
+    logger.info("starting foreign bridge on %s", options.FOREIGN_URL);
 
-	eventToTx(event) {
-		return this.web3.eth.getTransaction(event.transactionHash)
-			.then(tx => Object.assign({}, event, {
-				foreignTx: tx
-			}));
-	}
+    this.bridgeUtil
+      .startPolling()
+      .then(() => this.startERC20Listeners())
+      .then(() => {});
+  }
 
-	processEvent(contract, event) {
-		logger.info('bridge event : %s', event.event);
-		switch (event.event) {
-			case 'TokenAdded':
-				let watcher = new ERC20Watcher(
-					this.mainWebsocketURL,
-					event.returnValues._mainToken,
-					event.foreignTx.blockNumber,
-					this.homeBridgeContractAddress,
-					this.keyFile,
-					this.bridge);
-				this.tokenwatchers.push(watcher);
-				return Promise.resolve();
-			case 'MintRequestSigned':
-				if (event.foreignTx.from.toLowerCase() == this.signKey.public.toLowerCase()) {
-					logger.info('Marking MintRequestSigned with TxHash %s as processed ( txhash %s )', event.returnValues._mintRequestsHash, event.transactionHash);
-					this.bridgeUtil.markTx(event.transactionHash, {
-						date: Date.now(),
-						event: event,
-					});
-				}
-				break;
-			case 'ValidatorAdded':
-				// we can ignore these events
-				break;
-			default:
-				logger.info('unhandled event %s', event.event);
-				return Promise.resolve();
-		}
-	}
+  /**
+   *
+   */
+  async startERC20Listeners() {
+    // Get tokens on home net that are registered
+    const tokens = await this.contract.methods
+      .tokens()
+      .call({ from: this.signKey.public });
+
+    for (const mainAddress of tokens) {
+      // Retrieve the corresponding token address (foreign net)
+      const foreignAddress = await this.contract.methods
+        .tokenMap(mainAddress)
+        .call({ from: this.signKey.public });
+      if (foreignAddress) {
+        this.addTokenWatcher(mainAddress, foreignAddress);
+      }
+    }
+  }
+
+  /**
+   * Create event watchers for token registered on bridge contract
+   */
+  addTokenWatcher(mainAddress, foreignAddress) {
+    const addressWatcher = this.tokenwatchers.find(
+      watcher => watcher.contractAddress === mainAddress
+    );
+    if (addressWatcher) {
+      return;
+    }
+    const homeTokenWatcher = new HomeTokenWatcher(
+      this.connections.home,
+      mainAddress,
+      foreignAddress,
+      this.options.START_BLOCK_HOME,
+      this.options.HOME_BRIDGE,
+      this.signKey,
+      this.options.POLL_INTERVAL,
+      this.bridges
+    );
+
+    this.tokenwatchers.push(homeTokenWatcher);
+
+    const foreignTokenWatcher = new ForeignTokenWatcher(
+      this.connections.foreign,
+      mainAddress,
+      foreignAddress,
+      this.options.START_BLOCK_FOREIGN,
+      this.options.FOREIGN_BRIDGE,
+      this.signKey,
+      this.options.POLL_INTERVAL,
+      this.bridges
+    );
+  }
+
+  /**
+   * Validate and sign the request for minting tokens.
+   */
+  async signMintRequest(token, txhash, from, value) {
+    // get a unique hash for this bridge request + this signer
+    const mintRequestHash = bridgeLib.createMintRequest(
+      txhash,
+      token,
+      from,
+      value
+    );
+    const signRequestHash = bridgeLib.createSignRequestHash(
+      mintRequestHash,
+      this.signKey.public
+    );
+
+    // check if this hash is already in the bridge.
+    const signRequestExists = await this.contract.methods
+      .signedRequests(signRequestHash)
+      .call();
+
+    if (signRequestExists) {
+      logger.info(
+        "Validator %s already validated this with signRequestHash=%s",
+        this.signKey.public,
+        signRequestHash
+      );
+      return Promise.resolve(signRequestHash);
+    }
+
+    logger.info(
+      "Validator %s bridge token will now sign Tx %s",
+      this.signKey.public,
+      txhash
+    );
+
+    let validatorSignature = bridgeLib.signMintRequest(
+      txhash,
+      token,
+      from,
+      value,
+      this.signKey.private
+    );
+
+    let call = this.contract.methods.signMintRequest(
+      txhash,
+      token,
+      from,
+      value,
+      validatorSignature.v,
+      validatorSignature.r,
+      validatorSignature.s
+    );
+    await this.bridgeUtil.sendTx(call, this.signKey, this.contractAddress);
+  }
+
+  /**
+   * Validate and sign the request for withdrawing tokens.
+   */
+  async signWithdrawRequest(
+    mainTokenAdress,
+    transactionHash,
+    blockNumber,
+    from,
+    amount
+  ) {
+    const validatorSignature = bridgeLib.signWithdrawRequest(
+      mainTokenAdress,
+      from,
+      amount,
+      blockNumber,
+      this.signKey.private
+    );
+
+    const call = this.contract.methods.signWithdrawRequest(
+      transactionHash,
+      mainTokenAdress,
+      from,
+      amount,
+      blockNumber,
+      validatorSignature.v,
+      validatorSignature.r,
+      validatorSignature.s
+    );
+
+    await this.bridgeUtil.sendTx(call, this.signKey, this.contractAddress);
+  }
+
+  async processEvent(event) {
+    logger.info("bridge event: %s", event.event);
+
+    const eventHandlers = {
+      TokenAdded: this.onTokenAdded,
+      MintRequestSigned: this.onMintRequestSigned,
+      MintRequestExecuted: this.onMintRequestExecuted,
+      ValidatorAdded: this.onValidatorAdded,
+      WithdrawRequestSigned: this.onWithdrawRequestSigned,
+      WithdrawRequestGranted: this.onWithdrawRequestGranted
+    };
+
+    const eventHandler = eventHandlers[event.event];
+    if (eventHandler) {
+      await eventHandler.call(this, event);
+    }
+  }
+
+  // New token to share between networks has been registered.
+  async onTokenAdded(event) {
+    this.addTokenWatcher(
+      event.returnValues._mainToken,
+      event.foreignTx.blockNumber
+    );
+  }
+
+  // Request to mint token on foreign network has been validated by a validator node.
+  async onMintRequestSigned(event) {}
+
+  // Request was validated by enough nodes and the tokens have been minted to the owner
+  // on the foreign net.
+  async onMintRequestExecuted() {}
+
+  async onValidatorAdded(event) {
+    // we can ignore these events
+  }
+
+  async onWithdrawRequestSigned(event) {}
+
+  async onWithdrawRequestGranted(event) {}
 }
 
 module.exports = ForeignBridgeWatcher;

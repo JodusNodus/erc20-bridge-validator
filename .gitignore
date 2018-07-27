@@ -60,3 +60,5 @@ components/lib-apiserver
 components/lib-auth
 dist/
 .DS_Store
+
+.localCache-*

@@ -1,11 +1,21 @@
-// 'use strict';
-//import logger from './logs';
-//import bridgelib from '../../erc20-bridge/bridgelib';
-//import foreignBridge from './foreignBridge';
-
-const bridgelib = require('../../erc20-bridge/bridgelib');
+const Web3 = require("web3");
+const bip39 = require('bip39');
+const Wallet = require('ethereumjs-wallet');
+const hdkey = require('ethereumjs-wallet/hdkey');
+const HDWalletProvider = require('truffle-hdwallet-provider')
+const HomeBridgeWatcher = require('./HomeBridgeWatcher');
 const ForeignBridgeWatcher = require('./ForeignBridgeWatcher');
 const logger = require('./logs')(module);
+
+function seedToSignKey(seed) {
+	const provider = new HDWalletProvider(seed)
+	const public = provider.addresses[0];
+	const private = provider.wallets[public].getPrivateKeyString().slice(2);
+	return {
+		private,
+		public
+	}
+}
 
 /**
  * Bootstrap the validator node
@@ -18,18 +28,8 @@ class BridgeValidator {
 	 *
 	 * @param      {object}  options  The options
 	 */
-	constructor(MAINWEB3HOSTWS, MAINCONTRACTADDRESS, FOREIGNWEB3HOSTWS,
-		FOREIGNCONTRACTADDRESS, KEYFILE, STARTBLOCKMAIN, STARTBLOCKFOREIGN, POLLTIME,RESCAN) {
-
-		this.MAINWEB3HOSTWS = MAINWEB3HOSTWS;
-		this.MAINCONTRACTADDRESS = MAINCONTRACTADDRESS;
-		this.FOREIGNWEB3HOSTWS = FOREIGNWEB3HOSTWS;
-		this.FOREIGNCONTRACTADDRESS = FOREIGNCONTRACTADDRESS;
-		this.KEYFILE = KEYFILE;
-		this.STARTBLOCKMAIN = STARTBLOCKMAIN;
-		this.STARTBLOCKFOREIGN = STARTBLOCKFOREIGN;
-		this.POLLTIME = POLLTIME || 2000;
-		this.RESCAN = RESCAN;
+	constructor(options) {
+		this.options = options
 	}
 
 	/**
@@ -39,18 +39,24 @@ class BridgeValidator {
 	go() {
 		logger.info('bootstrapping validator');
 
-		this.signKey = require(this.KEYFILE);
-		logger.info('signer identity %s',this.signKey.public);
+		const signKey = seedToSignKey(this.options.VALIDATOR_SEED);
 
-		this.foreignBridgeWatcher = new ForeignBridgeWatcher(
-			this.MAINWEB3HOSTWS,
-			this.FOREIGNWEB3HOSTWS,
-			this.MAINCONTRACTADDRESS,
-			this.FOREIGNCONTRACTADDRESS,
-			this.STARTBLOCKFOREIGN,
-			this.KEYFILE,
-			this.RESCAN
-		);
+		logger.info('signer identity %s', signKey.public);
+
+		const connections = {
+			home: new Web3(new HDWalletProvider(
+				process.env.VALIDATOR_SEED,
+				this.options.HOME_URL
+			)),
+			foreign: new Web3(new HDWalletProvider(
+				process.env.VALIDATOR_SEED,
+				this.options.FOREIGN_URL
+			))
+		}
+
+		const bridges = {}
+		bridges.home = new HomeBridgeWatcher(this.options, connections, bridges, signKey);
+		bridges.foreign = new ForeignBridgeWatcher(this.options, connections, bridges, signKey);
 
 	}
 }
