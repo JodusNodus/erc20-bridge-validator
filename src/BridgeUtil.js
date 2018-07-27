@@ -68,14 +68,15 @@ class BridgeUtil {
     const fromBlock = lastProccessedBlock + 1;
     let toBlock = currentBlock;
 
+    // Block doesn't exist yet
+    if (fromBlock > toBlock) {
+      return;
+    }
+
     // cap range to 10000
     if (toBlock - fromBlock > 10000) {
       toBlock = fromBlock + 10000;
     }
-
-    // if (fromBlock === toBlock) {
-    //   return;
-    // }
 
     try {
       await this.processRange(this.contract, fromBlock, toBlock);
