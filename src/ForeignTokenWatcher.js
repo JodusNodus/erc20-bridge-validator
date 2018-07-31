@@ -1,7 +1,6 @@
 const Web3 = require('web3');
 const logger = require('./logs')(module);
 const ERC20 = require('../../erc20-bridge/build/contracts/ERC20.json');
-const bridgeLib = require('../../erc20-bridge/bridgelib')();
 const BridgeUtil = require('./BridgeUtil');
 
 /**

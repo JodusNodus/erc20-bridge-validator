@@ -45,7 +45,12 @@ class BridgeUtil {
   async pollLoop() {
     while (true) {
       await timeout(this.pollInterval);
-      await this.poll();
+      try {
+        await this.poll();
+      } catch(err) {
+        logger.warning("polling failed");
+        console.error(err)
+      }
     }
   }
 
@@ -94,12 +99,6 @@ class BridgeUtil {
   }
 
   async processRange(contract, fromBlock, toBlock) {
-    logger.info(
-      "processRange : Reading Events %s from %d to %d",
-      contract._address,
-      fromBlock,
-      toBlock
-    );
     let events = await contract.getPastEvents("allEvents", {
       fromBlock,
       toBlock

@@ -1,9 +1,8 @@
 const logger = require("./logs")(module);
 const ForeignBridge = require("../../erc20-bridge/build/contracts/ForeignBridge.json");
-const HomeTokenWatcher = require("./HomeTokenWatcher");
 const ForeignTokenWatcher = require("./ForeignTokenWatcher");
 const BridgeUtil = require("./BridgeUtil");
-const bridgeLib = require("../../erc20-bridge/bridgelib")();
+const bridgeLib = require("./lib/bridge");
 
 /**
  * Watch events on the Foreign bridge contract.
@@ -74,18 +73,6 @@ class ForeignBridgeWatcher {
     if (addressWatcher) {
       return;
     }
-    const homeTokenWatcher = new HomeTokenWatcher(
-      this.connections.home,
-      mainAddress,
-      foreignAddress,
-      this.options.START_BLOCK_HOME,
-      this.options.HOME_BRIDGE,
-      this.signKey,
-      this.options.POLL_INTERVAL,
-      this.bridges
-    );
-
-    this.tokenwatchers.push(homeTokenWatcher);
 
     const foreignTokenWatcher = new ForeignTokenWatcher(
       this.connections.foreign,
@@ -97,19 +84,22 @@ class ForeignBridgeWatcher {
       this.options.POLL_INTERVAL,
       this.bridges
     );
+    this.tokenwatchers.push(foreignTokenWatcher);
   }
 
   /**
    * Validate and sign the request for minting tokens.
    */
-  async signMintRequest(token, txhash, from, value) {
+  async signMintRequest(token, txhash, receiver, value) {
     // get a unique hash for this bridge request + this signer
+    console.log(token, txhash, receiver, value)
     const mintRequestHash = bridgeLib.createMintRequest(
       txhash,
       token,
-      from,
+      receiver,
       value
     );
+    console.log(mintRequestHash)
     const signRequestHash = bridgeLib.createSignRequestHash(
       mintRequestHash,
       this.signKey.public
@@ -138,7 +128,7 @@ class ForeignBridgeWatcher {
     let validatorSignature = bridgeLib.signMintRequest(
       txhash,
       token,
-      from,
+      receiver,
       value,
       this.signKey.private
     );
@@ -146,7 +136,7 @@ class ForeignBridgeWatcher {
     let call = this.contract.methods.signMintRequest(
       txhash,
       token,
-      from,
+      receiver,
       value,
       validatorSignature.v,
       validatorSignature.r,
