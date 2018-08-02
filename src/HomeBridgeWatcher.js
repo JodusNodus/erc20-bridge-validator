@@ -1,4 +1,4 @@
-const HomeBridge = require('../../erc20-bridge/build/contracts/HomeBridge.json');
+const HomeBridge = require('@settlemint/erc20-bridge/build/contracts/HomeBridge.json');
 const logger = require('./logs')(module);
 const BridgeUtil = require('./BridgeUtil');
 

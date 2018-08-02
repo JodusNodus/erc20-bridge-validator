@@ -1,5 +1,5 @@
 const logger = require("./logs")(module);
-const ForeignBridge = require("../../erc20-bridge/build/contracts/ForeignBridge.json");
+const ForeignBridge = require("@settlemint/erc20-bridge/build/contracts/ForeignBridge.json");
 const ForeignTokenWatcher = require("./ForeignTokenWatcher");
 const BridgeUtil = require("./BridgeUtil");
 const bridgeLib = require("./lib/bridge");

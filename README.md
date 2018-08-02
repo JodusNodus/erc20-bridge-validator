@@ -8,6 +8,9 @@ See [erc20-bridge](https://github.com/DataBrokerDAO/erc20-bridge) for bridge set
 
 Edit `.env` file or provide environment variables for the required options.
 
+# TODO
+- Test & Complete databroker withdrawing
+
 # Testing
 - Setup your node.
 - Start your node: `npm start`

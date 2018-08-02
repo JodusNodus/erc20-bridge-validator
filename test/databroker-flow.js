@@ -5,15 +5,16 @@ const HDWalletProvider = require('truffle-hdwallet-provider')
 const Web3 = require("web3");
 const optionsLoader = require('../src/lib/optionsLoader');
 
-const DTXToken = require("../../erc20-bridge/build/contracts/DTXToken.json");
-const ForeignBridge = require("../../erc20-bridge/build/contracts/ForeignBridge.json");
+const DTXToken = require("@settlemint/erc20-bridge/build/contracts/DTXToken.json");
+const ForeignDTXToken = require("@settlemint/erc20-bridge/build/contracts/ForeignDTXToken.json");
+const ForeignBridge = require("@settlemint/erc20-bridge/build/contracts/ForeignBridge.json");
 
 const { getBalance, catchSignaturesUntilGrant, waitForEvent } = require("./utils");
 
 const options = {
   BRIDGE_OWNER: 'puppy firm kit zero jelly script update alter ring rail zero gasp crawl meat know',
   TEST_ACCOUNT_SEED: process.env.TEST_ACCOUNT_SEED,
-  RECIPIENT: '0xd88457e2f87951f68fc56acf4b2fa0e249b3f19b',
+  TEST_ACCOUNT_SEED_2: process.env.TEST_ACCOUNT_SEED_2,
   HOME_TOKEN: process.env.HOME_TOKEN,
   FOREIGN_TOKEN: process.env.FOREIGN_TOKEN,
   ...optionsLoader()
@@ -26,7 +27,7 @@ const connections = {
     options.HOME_URL
   )),
   foreign: new Web3(new HDWalletProvider(
-    options.TEST_ACCOUNT_SEED,
+    options.TEST_ACCOUNT_SEED_2,
     options.FOREIGN_URL
   ))
 }
@@ -34,8 +35,8 @@ const homeWeb3 = connections.home;
 const foreignWeb3 = connections.foreign;
 
 // Test accounts
-let sender;
-let recipient;
+let homeAccount;
+let foreignAccount;
 
 // ERC20 Tokens
 let homeToken;
@@ -46,28 +47,30 @@ let foreignBridge;
 
 describe('Test bridge', function () {
   before('Setup accounts', async function () {
-    sender = (await homeWeb3.eth.getAccounts())[0];
-    recipient = options.RECIPIENT;
-    console.log("SENDER:", sender);
-    console.log("RECIPIENT:", recipient);
+    homeAccount = (await homeWeb3.eth.getAccounts())[0];
+    foreignAccount = (await foreignWeb3.eth.getAccounts())[0];
+    console.log("Home Account:", homeAccount);
+    console.log("Foreign Account:", foreignAccount);
   });
 
   before('Setup token contracts', async function () {
     homeToken = await new homeWeb3.eth.Contract(DTXToken.abi, options.HOME_TOKEN);
-    foreignToken = await new foreignWeb3.eth.Contract(DTXToken.abi, options.FOREIGN_TOKEN);
+    foreignToken = await new foreignWeb3.eth.Contract(ForeignDTXToken.abi, options.FOREIGN_TOKEN);
   });
 
   before('Setup bridge contracts', async function () {
     foreignBridge = await new foreignWeb3.eth.Contract(ForeignBridge.abi, options.FOREIGN_BRIDGE);
   });
 
-  it("should transfer alice's tokens from home to foreign net", async function () {
+  it("should deposit tokens to foreign net", async function () {
+    const sender = homeAccount;
+    const recipient = foreignAccount;
     const amount = 1;
 
-    const homeSenderBalance = await getBalance(homeToken, sender); 
-    const foreignRecipientBalance = await getBalance(foreignToken, recipient, sender); 
+    const senderBalance = await getBalance(homeToken, sender); 
+    const recipientBalance = await getBalance(foreignToken, recipient); 
 
-    assert.ok(homeSenderBalance >= amount, "Sender should have enough tokens to transfer");
+    assert.ok(senderBalance >= amount, "Sender should have enough tokens to transfer");
 
     const allowance = await homeToken.methods.allowance(sender, options.HOME_BRIDGE).call();
     if (allowance > 0) {
@@ -84,11 +87,51 @@ describe('Test bridge', function () {
       timeoutMs: 5e5
     });
 
-    assert.equal(await getBalance(homeToken, sender), homeSenderBalance - amount,
+    assert.equal(await getBalance(homeToken, sender), senderBalance - amount,
       "Sender should have `amount` less tokens than before on home net");
 
-    assert.equal(await getBalance(foreignToken, recipient, sender), foreignRecipientBalance + amount,
+    assert.equal(await getBalance(foreignToken, recipient, sender), recipientBalance + amount,
       "Recipient should have `amount` more tokens than before on foreign");
+  })
+
+  it("should withdraw tokens to home net", async function () {
+    const sender = foreignAccount;
+    const recipient = homeAccount;
+    const amount = 1;
+
+    const senderBalance = await getBalance(foreignToken, sender); 
+    const recipientBalance = await getBalance(homeToken, recipient); 
+
+    assert.ok(senderBalance >= amount, "Sender should have enough tokens to transfer");
+
+    const tx = await foreignToken.methods.transferWithData(options.FOREIGN_BRIDGE, amount, recipient).send({ from: sender });
+
+    // Receive signatures until granted
+    const signatures = await catchSignaturesUntilGrant(foreignBridge, foreignBlockNumber, tx.transactionHash);
+
+    const call = homeBridge.methods
+      .withdraw(homeToken._address, recipient, amount, signatures.withdrawBlock, signatures.v, signatures.r, signatures.s);
+
+    await call.send({
+      from: recipient,
+      gas: Math.ceil(await call.estimateGas() * 2),
+      gasPrice: await homeWeb3.eth.getGasPrice(),
+    })
+
+
+    // Wait until hometoken is transfered to alice
+    await waitForEvent({
+      contract: homeToken,
+      event: "Transfer",
+      fromBlock: homeBlockNumber,
+      filter: { to: recipient, value: amount }
+    })
+
+    assert.equal(await getBalance(homeToken, recipient), homeBalance + amount,
+      "Alice should have `amount` more tokens than before on home net")
+
+    assert.equal(await getBalance(foreignToken, sender), foreignBalance - amount,
+      "Alice should have `amount` less tokens than before on foreign")
   })
 
   after(async function () {
