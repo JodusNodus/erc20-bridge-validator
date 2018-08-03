@@ -15,7 +15,6 @@ class HomeBridgeWatcher {
 
 		this.options = options;
     this.signKey = signKey;
-    
 
 		this.bridgeUtil = new BridgeUtil(
 			this.web3,
